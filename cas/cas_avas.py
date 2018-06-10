@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import numpy, sys, scipy.linalg, os
+import numpy
 from pyscf import gto, scf, mcscf, symm, fci, lib
 from pyscf.tools import molden
-import avas
+from ..tools import avas
 
 name = 'n2'
 
@@ -24,7 +24,6 @@ mf = scf.newton(mf)
 mf = scf.addons.remove_linear_dep_(mf)
 mf.chkfile = name+'.chk'
 #mf.__dict__.update(lib.chkfile.load(name+'.chk', 'scf'))
-mf.auxbasis = 'aug-cc-pvtz-jkfit'
 mf.level_shift = 0.5
 mf.conv_tol = 1e-8
 mf.kernel()
