@@ -1,0 +1,9 @@
+*.pyc
+*.so
+*.mod
+*.chk
+*.den
+*.mol
+*.a
+*.molden
+*.xyz

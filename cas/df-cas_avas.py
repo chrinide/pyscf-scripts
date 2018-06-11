@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import numpy
-from pyscf import gto, scf, mcscf, symm, fci, lib
-from pyscf.tools import molden
 import sys
 sys.path.append('../tools')
+import numpy
+from pyscf import gto, scf, mcscf, symm, fci, lib, df
+from pyscf.tools import molden
 import avas
 
 name = 'n2'
@@ -21,7 +21,11 @@ mol.charge = 0
 mol.symmetry = 1
 mol.build()
 
-mf = scf.RHF(mol)
+#int3c = df.incore.cholesky_eri(mol, auxbasis='aug-cc-pvdz-jkfit')
+
+mf = scf.density_fit(scf.RHF(mol))
+#mf.with_df._cderi = int3c
+mf.auxbasis = 'aug-cc-pvtz-jkfit'
 mf = scf.newton(mf)
 mf = scf.addons.remove_linear_dep_(mf)
 mf.chkfile = name+'.chk'
@@ -66,7 +70,8 @@ aolst4 = ['N 3p']
 aolst = aolst1 + aolst2 + aolst3 + aolst4
 ncas, nelecas, mo = avas.kernel(mf, aolst, threshold_occ=0.1, threshold_vir=0.01, minao='minao', ncore=ncore)
 
-mc = mcscf.CASSCF(mf, ncas, nelecas)
+mc = mcscf.DFCASSCF(mf, ncas, nelecas)
+#mc = mcscf.DFCASSCF(mf, ncas, nelecas, auxbasis='aug-cc-pvdz-jkfit')
 mc.max_cycle_macro = 250
 mc.max_cycle_micro = 7
 mc.chkfile = name+'.chk'
