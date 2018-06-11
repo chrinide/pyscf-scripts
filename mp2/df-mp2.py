@@ -22,12 +22,13 @@ mol.symmetry = 1
 mol.verbose = 4
 mol.build()
 
-mf = scf.density_fit(scf.RHF(mol))
-mf = scf.newton(mf)
-mf = scf.addons.remove_linear_dep_(mf)
+mf = scf.RHF(mol)
 mf.chkfile = name+'.chk'
-mf.auxbasis = 'aug-cc-pvtz-jkfit'
 mf.level_shift = 0.5
+mf = scf.density_fit(mf)
+mf.auxbasis = 'aug-cc-pvdz-jkfit'
+mf = scf.addons.remove_linear_dep_(mf)
+mf = scf.newton(mf)
 mf.kernel()
 dm = mf.make_rdm1()
 mf.level_shift = 0.0

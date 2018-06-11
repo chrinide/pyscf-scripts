@@ -23,10 +23,10 @@ mol.verbose = 4
 mol.build()
 
 mf = scf.RHF(mol)
-mf = scf.newton(mf)
-mf = scf.addons.remove_linear_dep_(mf)
 mf.chkfile = name+'.chk'
 mf.level_shift = 0.5
+mf = scf.addons.remove_linear_dep_(mf)
+mf = scf.newton(mf)
 mf.kernel()
 dm = mf.make_rdm1()
 mf.level_shift = 0.0
