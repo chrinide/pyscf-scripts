@@ -5,7 +5,7 @@ from pyscf import gto, scf, dft
 from pyscf.geomopt import berny_solver
 from berny import Berny, geomlib, Logger, optimize as optimize_berny
 
-name = 'c2h4'
+name = 'c2h4_hf'
 
 mol = gto.Mole()
 mol.atom = '''

@@ -5,7 +5,7 @@ from pyscf import gto, scf, dft
 from pyscf.geomopt import berny_solver
 from berny import Berny, geomlib, Logger, optimize as optimize_berny
 
-name = 'c2h4'
+name = 'c2h4_dft'
 
 mol = gto.Mole()
 mol.atom = '''
@@ -23,7 +23,7 @@ mol.symmetry = 0
 mol.verbose = 4
 mol.build()
 
-mf = dft.RKS(mol).nuc_grad_method().as_scanner() 
+mf = dft.RKS(mol).nuc_grad_method().as_scanner()
 mf.base = scf.addons.remove_linear_dep_(mf.base)
 mf.base.level_shift = 0.2
 mf.base.verbose = 4

@@ -41,7 +41,7 @@ mf_grad_scan.base.xc = 'pbe0'
 mf_grad_scan.base.grids.level = 3
 mf_grad_scan.base.grids.prune = dft.gen_grid.nwchem_prune
 mf_grad_scan.grid_response = False
-
+    
 def mf_grad_with_dftd3(geom):
     e_tot, g_rhf = mf_grad_scan(geom)
     mol = mf_grad_scan.mol
