@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# https://aip.scitation.org/doi/abs/10.1063/1.460293
+
 import numpy, sys
 from pyscf import gto, scf, lib, cc
 from pyscf.cc import ccsd_t
