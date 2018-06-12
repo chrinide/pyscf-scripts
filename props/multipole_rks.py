@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy
-from pyscf import gto, scf, lib
+from pyscf import gto, dft, lib
 
 mol = gto.Mole()
 mol.basis = 'aug-cc-pvtz'
@@ -16,7 +16,10 @@ mol.charge = 0
 mol.build()
 
 nao = mol.nao_nr()
-mf = scf.RHF(mol)
+mf = dft.RKS(mol)
+mf.xc = 'pbe0'
+mf.grids.level = 4
+mf.grids.prune = None
 energy = mf.kernel()
 dm = mf.make_rdm1()
 

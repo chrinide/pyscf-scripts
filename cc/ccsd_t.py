@@ -2,9 +2,12 @@
 
 import numpy, sys
 from pyscf import gto, scf, cc, lib, ao2mo
+from pyscf.cc import ccsd_t
+from pyscf.cc import ccsd_t_lambda_slow as ccsd_t_lambda
+from pyscf.cc import ccsd_t_rdm_slow as ccsd_t_rdm
 from pyscf.tools import molden
 
-name = 'n2_ccsd'
+name = 'n2_ccsd_t'
 
 mol = gto.Mole()
 mol.basis = 'aug-cc-pvdz'
@@ -28,7 +31,7 @@ mf.conv_tol = 1e-8
 mf.kernel()
 dm = mf.make_rdm1()
 mf.level_shift = 0.0
-mf.kernel(dm)
+ehf = mf.kernel(dm)
 
 ncore = 2
 mcc = cc.CCSD(mf)
@@ -38,23 +41,21 @@ mcc.frozen = ncore
 mcc.conv_tol = 1e-6
 mcc.conv_tol_normt = 1e-6
 mcc.max_cycle = 150
-mcc.kernel()
+ecc, t1, t2 = mcc.kernel()
 
 t1norm = numpy.linalg.norm(mcc.t1)
 t1norm = t1norm/numpy.sqrt(mol.nelectron-ncore*2)
 lib.logger.info(mcc,"* T1 norm should be les than 0.02")
 lib.logger.info(mcc,"* T1 norm : %12.6f" % t1norm)
-#
-#d1mat = numpy.dot(mcc.t1, mcc.t1.T)
-#d1o, c = numpy.linalg.eig(d1mat)
-#d1 = max(d1o)
-#d1norm = numpy.sqrt(d1)
-#lib.logger.info(mcc,"* D1 norm should be les than 0.05")
-#lib.logger.info(mcc,"* D1 norm : %12.6f" % d1norm)
 
 nao, nmo = mf.mo_coeff.shape
-rdm1 = mcc.make_rdm1()
-rdm2 = mcc.make_rdm2()
+eris = mcc.ao2mo()
+e3 = ccsd_t.kernel(mcc, eris, t1, t2)
+lib.logger.info(mcc,"* CCSD(T) energy : %12.6f" % (ehf+ecc+e3))
+l1, l2 = ccsd_t_lambda.kernel(mcc, eris, t1, t2)[1:]
+
+rdm1 = ccsd_t_rdm.make_rdm1(mcc, t1, t2, l1, l2, eris=eris)
+rdm2 = ccsd_t_rdm.make_rdm2(mcc, t1, t2, l1, l2, eris=eris)
 
 eri_mo = ao2mo.kernel(mf._eri, mf.mo_coeff[:,:nmo], compact=False)
 eri_mo = eri_mo.reshape(nmo,nmo,nmo,nmo)
