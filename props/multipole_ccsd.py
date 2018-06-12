@@ -43,19 +43,16 @@ charges = mol.atom_charges()
 coords  = mol.atom_coords()
 mol.set_common_orig(origin)
 
-lib.logger.info(mf,'* One can work equally on AO basis or MO basis')
-
 # MO basis
 r2 = mol.intor_symmetric('int1e_r2')
 r2 = reduce(numpy.dot, (mf.mo_coeff.T, r2, mf.mo_coeff))
 r2 = numpy.einsum('ij,ji->', r2, rdm1)
 lib.logger.info(mf,'Electronic spatial extent <R**2> (au): %.4f', r2)
 
+# AO basis
 lib.logger.info(mf,'* Multipoles in the independent field-basis, Gauge -> (0,0,0)')
 lib.logger.info(mf,'* The electronic part is considered as negative, while positive for the nuclear part')
 lib.logger.info(mf,'* This is the reverse criteria used in Gaussian')
-
-# AO basis
 dm = reduce(lib.dot, (mf.mo_coeff,rdm1,mf.mo_coeff.T))
 ao_dip = mol.intor_symmetric('int1e_r', comp=3)
 el_dip = numpy.einsum('xij,ji->x', ao_dip, dm)

@@ -79,23 +79,3 @@ lib.logger.info(mf,'Total Hexadecapole moments (ZZZY, XXYY, XXZZ, YYZZ): %.4f, %
 rrrr[2,2,2,1], rrrr[0,0,1,1], rrrr[0,0,2,2], rrrr[1,1,2,2])
 lib.logger.info(mf,'Total Hexadecapole moments (XXYZ, YYXZ, ZZXY): %.4f, %.4f, %.4f', \
 rrrr[0,0,1,2], rrrr[1,1,0,2], rrrr[2,2,0,1])
-
-# Gaussian 09 reference data
-# Electronic spatial extent (au):  <R**2>=             39.7795
-# Dipole moment (field-independent basis, Debye):
-#    X=              0.0000    Y=              0.0000    Z=             -0.2440  Tot=              0.2440
-# Quadrupole moment (field-independent basis, Debye-Ang):
-#   XX=            -10.2080   YY=            -10.2080   ZZ=            -12.2995
-#   XY=              0.0000   XZ=              0.0000   YZ=              0.0000
-# Traceless Quadrupole moment (field-independent basis, Debye-Ang):
-#   XX=              0.6971   YY=              0.6971   ZZ=             -1.3943
-#   XY=              0.0000   XZ=              0.0000   YZ=              0.0000
-# Octapole moment (field-independent basis, Debye-Ang**2):
-#  XXX=              0.0000  YYY=              0.0000  ZZZ=              6.2801  XYY=              0.0000
-#  XXY=              0.0000  XXZ=              1.0409  XZZ=              0.0000  YZZ=              0.0000
-#  YYZ=              1.0409  XYZ=              0.0000
-# Hexadecapole moment (field-independent basis, Debye-Ang**3):
-# XXXX=             -9.1209 YYYY=             -9.1209 ZZZZ=            -37.0722 XXXY=              0.0000
-# XXXZ=              0.0000 YYYX=              0.0000 YYYZ=              0.0000 ZZZX=              0.0000
-# ZZZY=              0.0000 XXYY=             -3.0403 XXZZ=             -7.0154 YYZZ=             -7.0154
-# XXYZ=              0.0000 YYXZ=              0.0000 ZZXY=              0.0000
