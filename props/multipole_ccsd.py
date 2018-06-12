@@ -53,8 +53,6 @@ lib.logger.info(mf,'Electronic spatial extent <R**2> (au): %.4f', r2)
 
 # AO basis
 lib.logger.info(mf,'* Multipoles in the independent field-basis, Gauge -> (0,0,0)')
-lib.logger.info(mf,'* The electronic part is considered as negative, while positive for the nuclear part')
-lib.logger.info(mf,'* This is the reverse criteria used in Gaussian')
 dm = reduce(lib.dot, (mf.mo_coeff,rdm1,mf.mo_coeff.T))
 ao_dip = mol.intor_symmetric('int1e_r', comp=3)
 el_dip = numpy.einsum('xij,ji->x', ao_dip, dm)

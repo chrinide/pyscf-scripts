@@ -36,8 +36,6 @@ r2 = numpy.einsum('ij,ji->', r2, dm)
 lib.logger.info(mf,'Electronic spatial extent <R**2> (au): %.4f', r2)
 
 lib.logger.info(mf,'* Multipoles in the independent field-basis, Gauge -> (0,0,0)')
-lib.logger.info(mf,'* The electronic part is considered as negative, while positive for the nuclear part')
-lib.logger.info(mf,'* This is the reverse criteria used in Gaussian')
 
 ao_dip = mol.intor_symmetric('int1e_r', comp=3)
 el_dip = numpy.einsum('xij,ji->x', ao_dip, dm)
