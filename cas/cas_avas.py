@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, sys
+sys.path.append('../tools')
 from pyscf import gto, scf, mcscf, symm, fci, lib
 from pyscf.tools import molden
-import sys
-sys.path.append('../tools')
 import avas
 
 name = 'n2'

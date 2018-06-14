@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, sys
+from functools import reduce
+sys.path.append('../tools')
 from pyscf import gto, scf, ci, mcscf, ao2mo, lib
 from pyscf.tools import molden
-import sys
-sys.path.append('../tools')
 import avas
 
 class AsFCISolver(object):

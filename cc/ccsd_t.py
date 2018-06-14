@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy, sys
+from functools import reduce
 from pyscf import gto, scf, cc, lib, ao2mo
 from pyscf.cc import ccsd_t
 from pyscf.cc import ccsd_t_lambda_slow as ccsd_t_lambda

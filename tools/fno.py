@@ -2,6 +2,7 @@
 
 import numpy
 from pyscf import lib
+from functools import reduce
 einsum = lib.einsum
 
 def getdffno(mf,ncore,eri_mo,thresh_vir=1e-4):

@@ -3,6 +3,7 @@
 # https://aip.scitation.org/doi/abs/10.1063/1.460293
 
 import numpy, sys
+from functools import reduce
 from pyscf import gto, scf, lib, cc
 
 mol = gto.Mole()
