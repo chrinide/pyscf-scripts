@@ -7,5 +7,7 @@ ftr-mp2.py --> Renormalized finit temperature MP2
 lp-mp2.py --> Laplace based
 lp-lo-mp2.py --> Laplace local density fitting
 df-st-mp2.py --> Stochastic density fitting 
+mp2+vdw.py
+rs-mp2.py --> range separted
 
 Also density fitting versions

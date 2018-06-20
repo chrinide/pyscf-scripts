@@ -37,8 +37,8 @@ lib.logger.info(mf,'Nuclear Atraction energy : %12.6f' % elnuce)
 lib.logger.info(mf,'Nuclear Repulsion energy : %12.6f' % enuc)
 bie1 = numpy.einsum('ijkl,ij,kl->',eri_ao,dm,dm)*0.5 # J
 bie2 = numpy.einsum('ijkl,il,jk->',eri_ao,dm,dm)*0.25 # XC
-pairs1 = numpy.einsum('ij,kl,ij,kl->',dm,dm,s,s)*0.5 # J
-pairs2 = numpy.einsum('ij,kl,li,kj->',dm,dm,s,s)*0.25 # XC
+pairs1 = numpy.einsum('ij,kl,ij,kl->',dm,dm,s,s) # J
+pairs2 = numpy.einsum('ij,kl,li,kj->',dm,dm,s,s)*0.5 # XC
 pairs = (pairs1 - pairs2)
 lib.logger.info(mf,'Coulomb Pairs : %12.6f' % (pairs1))
 lib.logger.info(mf,'XC Pairs : %12.6f' % (pairs2))
