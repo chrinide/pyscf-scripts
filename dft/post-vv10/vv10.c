@@ -33,23 +33,29 @@ void vv10(const int n, const double *coords,
     double W01 = sqrt(Wg1 + Wp1);
 		double kappa1 = pow(rho1,1.0/6.0)*kappa_pref;
 		double kernel = 0.0;
+#pragma omp parallel default(none) \
+        reduction(+:kernel) \
+        shared(point1x,point1y,point1z,coords,rho,weights,kappa_pref,gnorm2,kappa1,W01)
+{
+#pragma omp for nowait schedule(dynamic)
 		for (jdx=0; jdx<n; jdx++){
 			double R = (point1x-coords[jdx*3+0])*(point1x-coords[jdx*3+0]);
 			R += (point1y-coords[jdx*3+1])*(point1y-coords[jdx*3+1]);
 			R += (point1z-coords[jdx*3+2])*(point1z-coords[jdx*3+2]);
-			double rho2 = rho[jdx];
+		  double rho2 = rho[jdx];
 	    double weigth2 = weights[jdx];
-    	double gamma2 = gnorm2[jdx];
+      double gamma2 = gnorm2[jdx];
 	    double Wp2 = const43*rho2;
-    	double Wg2 = coef_C*pow(gamma2/(rho2*rho2),2);
-    	double W02 = sqrt(Wg2 + Wp2);
-			double kappa2 = pow(rho2,1.0/6.0)*kappa_pref;
-			double g = W01*R + kappa1;
-			double gp = W02*R + kappa2;
+      double Wg2 = coef_C*pow(gamma2/(rho2*rho2),2);
+      double W02 = sqrt(Wg2 + Wp2);
+		  double kappa2 = pow(rho2,1.0/6.0)*kappa_pref;
+		  double g = W01*R + kappa1;
+		  double gp = W02*R + kappa2;
       kernel += -1.5*weigth2*rho2/(g*gp*(g+gp));
-		};
+		}
+} 
 		vv10_e += weigth1*rho1*(coef_beta + 0.5*kernel);
-	};
+	}
  
 	printf("VV10 Energy : %16.10f\n", vv10_e);
 

@@ -10,4 +10,4 @@ libvv10.so: vv10.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	/bin/rm *.o *.so
+	/bin/rm *.so

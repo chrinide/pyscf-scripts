@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from pyscf import gto, scf, lib, dft
 import os, time, numpy, ctypes
+from pyscf import gto, scf, lib, dft
 
 _loaderpath = os.path.dirname(__file__)
 libvv10 = numpy.ctypeslib.load_library('libvv10.so', _loaderpath)
@@ -31,10 +31,10 @@ rho = dft.numint.eval_rho(mol, ao, dm, xctype='GGA')
 gnorm2 = numpy.zeros(ngrids)
 for i in range(ngrids):
     gnorm2[i] = numpy.linalg.norm(rho[-3:,i])**2
-print('Rho = %.12f' % numpy.einsum('i,i->', rho[0], weights))
+lib.logger.info(mf,'Rho = %.12f' % numpy.einsum('i,i->', rho[0], weights))
 ex, vx = dft.libxc.eval_xc('rPW86,', rho)[:2]
 ec, vc = dft.libxc.eval_xc(',PBE', rho)[:2]
-print('Exc = %.12f' % numpy.einsum('i,i,i->', ex+ec, rho[0], weights))
+lib.logger.info(mf, 'Exc = %.12f' % numpy.einsum('i,i,i->', ex+ec, rho[0], weights))
 
 coef_C = 0.0093
 coef_B = 5.9
@@ -43,6 +43,7 @@ kappa_pref = coef_B * (1.5*numpy.pi)/((9.0*numpy.pi)**(1.0/6.0))
 const = 4.0/3.0 * numpy.pi
 vv10_e = 0.0
 
+t = time.time()
 for idx1 in range(ngrids):
     point1 = coords[idx1,:]
     rho1 = rho[0,idx1]
@@ -67,11 +68,13 @@ for idx1 in range(ngrids):
     # Energy 
     kernel = kernel12.sum()
     vv10_e += weigth1*rho1*(coef_beta + 0.5*kernel)
-
-print('VV10 = %.12f' % vv10_e)
+lib.logger.info(mf, 'VV10 = %.12f' % vv10_e)
+lib.logger.info(mf, 'Total time taken VV10: %.3f seconds' % (time.time()-t))
    
+t = time.time()
 libvv10.vv10(ctypes.c_int(ngrids),
              coords.ctypes.data_as(ctypes.c_void_p),
              rho.ctypes.data_as(ctypes.c_void_p),
              weights.ctypes.data_as(ctypes.c_void_p),
              gnorm2.ctypes.data_as(ctypes.c_void_p))
+lib.logger.info(mf, 'Total time taken VV10 (C): %.3f seconds' % (time.time()-t))
