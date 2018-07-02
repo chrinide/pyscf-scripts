@@ -7,7 +7,6 @@ einsum = lib.einsum
 
 def getdffno(mf,ncore,eri_mo,thresh_vir=1e-4):
 
-  lib.logger.info(mf," ")
   lib.logger.info(mf,"* FNO orbital construction ")
   lib.logger.info(mf,"* VIR threshold: %s" % thresh_vir)
 
@@ -69,7 +68,6 @@ def getdffno(mf,ncore,eri_mo,thresh_vir=1e-4):
 
 def getfno(mf,ncore,thresh_vir=1e-4):
 
-  lib.logger.info(mf," ")
   lib.logger.info(mf,"* FNO orbital construction ")
   lib.logger.info(mf,"* VIR threshold: %s" % thresh_vir)
 
