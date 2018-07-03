@@ -72,9 +72,13 @@ lib.logger.info(mf, 'VV10 = %.12f' % vv10_e)
 lib.logger.info(mf, 'Total time taken VV10: %.3f seconds' % (time.time()-t))
    
 t = time.time()
-libvv10.vv10(ctypes.c_int(ngrids),
+libvv10.vv10.restype = ctypes.c_double
+ev = libvv10.vv10(ctypes.c_int(ngrids),
+             ctypes.c_double(coef_C),
+             ctypes.c_double(coef_B),
              coords.ctypes.data_as(ctypes.c_void_p),
              rho.ctypes.data_as(ctypes.c_void_p),
              weights.ctypes.data_as(ctypes.c_void_p),
              gnorm2.ctypes.data_as(ctypes.c_void_p))
+lib.logger.info(mf, 'VV10 = %.12f' % ev)
 lib.logger.info(mf, 'Total time taken VV10 (C): %.3f seconds' % (time.time()-t))

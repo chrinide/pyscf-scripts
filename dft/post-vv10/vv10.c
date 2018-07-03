@@ -2,15 +2,17 @@
 #include <stdlib.h>
 #include <math.h>
 
-void vv10(const int n, const double *coords, 
-                       const double *rho,
-                       const double *weights,
-                       const double *gnorm2)
+double vv10(const int n, const double coef_C,
+                         const double coef_B,
+                         const double *coords, 
+                         const double *rho,
+                         const double *weights,
+                         const double *gnorm2)
 {
 
   const double pi = 3.14159265358979323846264338328; 
-  const double coef_C = 0.0093;
-  const double coef_B = 5.9;
+  //const double coef_C = 0.0093;
+  //const double coef_B = 5.9;
   const double const43 = 4.0/3.0*pi;
 
 	size_t idx, jdx;
@@ -57,6 +59,7 @@ void vv10(const int n, const double *coords,
 		vv10_e += weigth1*rho1*(coef_beta + 0.5*kernel);
 	}
  
-	printf("VV10 Energy : %16.10f\n", vv10_e);
+	//printf("VV10 Energy : %16.10f\n", vv10_e);
+  return vv10_e;
 
 }
