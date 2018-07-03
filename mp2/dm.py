@@ -61,6 +61,7 @@ for i in range(nocc):
 
 orbsym = symm.label_orb_symm(mol, mol.irrep_id, mol.symm_orb, mf.mo_coeff[:,:nmo])
 natocc, natorb = symm.eigh(-rdm1, orbsym)
+#natocc, natorb = numpy.linalg.eigh(-rdm1)
 for i, k in enumerate(numpy.argmax(abs(natorb), axis=0)):
     if natorb[k,i] < 0:
         natorb[:,i] *= -1
@@ -69,6 +70,16 @@ natocc = -natocc
 lib.logger.info(mf,"* Natural occupancies")
 lib.logger.info(mf,"%s" % natocc)
 lib.logger.info(mf,"* The sum of the natural occupation numbers is %6.4f" % numpy.sum(natocc))
+
+thresh = 0.010
+active = (thresh <= natocc) & (natocc <= 2-thresh)
+lib.logger.info(mf,"* Threshold for active orbitals is %6.4f" % thresh)
+lib.logger.info(mf,'Active Natural orbitals:')
+for i in range(nmo):
+    lib.logger.info(mf, 'orb: %d %s %6.4f' %(i,active[i],natocc[i]))
+    actIndices = numpy.where(active)[0]
+lib.logger.info(mf, 'Num active orbitals %d' % len(actIndices))
+lib.logger.info(mf, 'active orbital indices %s' % actIndices)
 
 # Compute second order density matrix and correlation energy
 c = mf.mo_coeff
