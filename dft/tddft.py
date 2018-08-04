@@ -8,7 +8,7 @@ einsum = lib.einsum
 mol = gto.Mole()
 mol.basis = 'aug-cc-pvqz'
 mol.atom = '''
-Be 0.0000  0.0000  0.0000
+Be  0.0000  0.0000  0.0000
 '''
 mol.charge = 0
 mol.spin = 0
@@ -16,7 +16,8 @@ mol.symmetry = 0
 mol.verbose = 4
 mol.build()
 
-mf = scf.RHF(mol).density_fit() 
+mf = dft.RKS(mol)
+mf.xc = 'pbe50'
 ehf = mf.kernel()
 
 ncore = 0
@@ -32,6 +33,11 @@ cv = mo_vir
 eo = mf.mo_energy[ncore:ncore+nocc]
 ev = mf.mo_energy[ncore+nocc:]
 
+v_ijab = ao2mo.general(mf._eri, (co,co,cv,cv), compact=False)
+v_ijab = v_ijab.reshape(nocc,nocc,nvir,nvir)
+v_iajb = ao2mo.general(mf._eri, (co,cv,co,cv), compact=False)
+v_iajb = v_iajb.reshape(nocc,nvir,nocc,nvir)
+
 # Grab perturbation tensors in MO basis
 origin = ([0.0,0.0,0.0])
 mol.set_common_orig(origin)
@@ -43,16 +49,50 @@ for num in range(3):
     Fia *= -2.0
     dipoles_xyz.append(Fia)
 
+# Build orbital-Hessian
+E1  = numpy.einsum('ab,ij->iajb', numpy.diag(ev), numpy.diag(numpy.ones(nocc)))
+E1 -= numpy.einsum('ij,ab->iajb', numpy.diag(eo), numpy.diag(numpy.ones(nvir)))
+E1 += 4.0*v_iajb
+E1 -= v_ijab.swapaxes(1, 2)
+E1 -= v_iajb.swapaxes(0, 2)
+E1 *= 4.0
+
+def diagonalize(a, b, nroots=5):
+    e = numpy.linalg.eig(numpy.bmat([[a        , b       ],
+                                     [-b.conj(),-a.conj()]]))[0]
+    lowest_e = numpy.sort(e[e > 0])[:nroots]
+    return lowest_e
+
+a, b = tddft.TDDFT(mf).get_ab()
+a.shape = (nov, nov)
+b.shape = (nov, nov)
+nroots = 5
+print('Direct diagoanlization:', diagonalize(a, b))
+print('Reference:', tddft.TDDFT(mf).kernel(nstates=5)[0])
+
 # Since we are time dependent we need to build the full Hessian:
-# Dyson equation for the polarizability
 # | A B |      | D  S | |  x |   |  b |
 # | B A |  - w | S -D | | -x | = | -b |
 
-A11, B11 = tddft.TDHF(mf).get_ab()
-A11 = 2.0*A11
-B11 = -2.0*B11
-A11.shape = (nov, nov)
-B11.shape = (nov, nov)
+# Build A and B blocks
+#A11  = numpy.einsum('ab,ij->iajb', numpy.diag(ev), numpy.diag(numpy.ones(nocc)))
+#A11 -= numpy.einsum('ij,ab->iajb', numpy.diag(eo), numpy.diag(numpy.ones(nvir)))
+#A11 += 2.0*v_iajb
+#A11 -= v_ijab.swapaxes(1, 2)
+#A11 *= 2.0
+A11 = a*2.0
+
+#B11  = -2.0*v_iajb
+#B11 += v_iajb.swapaxes(0, 2)
+#B11 *= 2.0
+B11 = -b*2.0
+
+# The blocks A - B should be equal to E1 / 2
+#print('A11 - B11 == E1 / 2?\n',  numpy.allclose(A11 - B11, E1/2.0))
+
+# Reshape and jam it together
+#A11.shape = (nov, nov)
+#B11.shape = (nov, nov)
 
 Hess1 = numpy.hstack((A11, B11))
 Hess2 = numpy.hstack((B11, A11))
@@ -74,7 +114,7 @@ B = numpy.hstack((dip_x.ravel(), -dip_x.ravel()))
 
 C6 = numpy.complex(0, 0)
 hyper_polar = numpy.complex(0, 0)
-leg_points = 20
+leg_points = 10
 fdds_lambda = 0.30
 print('     Omega      value     weight        sum')
 
@@ -113,5 +153,7 @@ print('Alpha                 % 10.5f' % static_polar.real)
 print('C6                    % 10.5f' % C6.real)
 
 print('\nBenchmark values:')
+print('C6 He  Limit          % 10.5f' % 1.376)
+print('C6 Li+ Limit          % 10.5f' % 0.076)
 print('C6 Be  Limit          % 10.5f' % 282.4)
 
