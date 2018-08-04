@@ -36,19 +36,21 @@ aolst = aolst1 + aolst2
 ncas, nelecas, mo = avas.kernel(mf, aolst, threshold_occ=0.1, threshold_vir=0.01, minao='ano', ncore=ncore)
 
 mch = shci.SHCISCF(mf, ncas, nelecas)
-mch.max_cycle_macro = 250
+mch.max_memory = 45000
+mch.chkfile = name+'.chk'
+mch.max_cycle_macro = 35
 mch.max_cycle_micro = 7
-#mch.fcisolver.mpiprefix = 'mpirun -np 8'
+mch.fcisolver.mpiprefix = '/opt/openmpi/1.8.4/bin/mpirun -np 12 ' 
 mch.fcisolver.nPTiter = 0 # Turn off perturbative calc.
 mch.fcisolver.sweep_iter = [0, 5]
-mch.fcisolver.sweep_epsilon = [1e-3, 0.5e-3]
-mch.chkfile = name+'.chk'
+mch.fcisolver.sweep_epsilon = [0.0005, 1e-4]
 mch.fcisolver.dE = 1.e-6
-mch.fcisolver.maxIter = 20
-mch.fcisolver.num_thrds = 12
-#mch.__dict__.update(scf.chkfile.load(name+'.chk', 'mcscf'))
+mch.fcisolver.maxIter = 15
+mch.fcisolver.num_thrds = 2
+mch.fcisolver.useExtraSymm = True
+mch.fcisolver.memory = 45000
+mch.fcisolver.wfnsym = 'A1g'
 #mo = lib.chkfile.load(name+'.chk', 'mcscf/mo_coeff')
-#mch.mc1step(mo)
 mch.kernel(mo)
 
 nmo = mch.ncore + mch.ncas
