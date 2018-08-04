@@ -324,7 +324,7 @@ def _mo_without_core(cc, mo):
 
 if __name__ == '__main__':
     from pyscf import gto
-    from pyscf import scf
+    from pyscf import scf, cc
 
     mol = gto.Mole()
     mol.verbose = 4
@@ -333,12 +333,24 @@ if __name__ == '__main__':
     H 1 1.1
     H 1 1.1 2 104
     '''
-    mol.basis = 'cc-pvdz'
+    mol.basis = '6-31g'
     mol.build()
+
     rhf = scf.RHF(mol)
     rhf.scf() 
 
     mcc = CCD(rhf)
-    mcc.frozen = 1
+    mcc.frozen = 0
     mcc.kernel()
+
+    mycc = cc.CCSD(rhf)
+    mycc.frozen = 0
+    old_update_amps = mycc.update_amps
+    def update_amps(t1, t2, eris):
+        t1, t2 = old_update_amps(t1, t2, eris)
+        return t1*0, t2
+    mycc.update_amps = update_amps
+    mycc.kernel()
+    
+    print('Ref CCD correlation energy', mycc.e_corr)
 
