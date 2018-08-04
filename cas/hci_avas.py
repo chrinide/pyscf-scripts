@@ -7,27 +7,18 @@ from pyscf.tools import molden
 import avas, wfn_format
 
 class AsFCISolver(object):
-    def __init__(self):
+    def __init__(self, mol):
         self.myci = None
+        self.mol = mol
 
     def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
-        fakemol = gto.M(verbose=0)
-        nelec = numpy.sum(nelec)
-        fakemol.nelectron = nelec
-        fake_hf = scf.RHF(fakemol)
-        fake_hf.conv_tol = 1e-8
-        fake_hf.max_cycle = 150
-        fake_hf._eri = ao2mo.restore(8, h2, norb)
-        fake_hf.get_hcore = lambda *args: h1
-        fake_hf.get_ovlp = lambda *args: numpy.eye(norb)
-        fake_hf.kernel()
-        self.myci = hci.SelectedCI(fake_hf)
+        self.myci = hci.SelectedCI(mol)
         self.myci = hci.fix_spin(self.myci, ss=0.00000, shift=0.8)
         self.myci.select_cutoff = 1e-3
         self.myci.ci_coeff_cutoff = 1e-3
         self.myci.conv_ndet_tol = 1e-3
         self.myci.max_iter = 100
-        e, civec = self.myci.kernel(h1, fake_hf._eri, norb, nelec, verbose=0)
+        e, civec = self.myci.kernel(h1, h2, norb, nelec, verbose=0)
         return e[0]+ecore, civec[0]
 
     def make_rdm1(self, fake_ci, norb, nelec):

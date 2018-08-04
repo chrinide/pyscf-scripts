@@ -1,8 +1,5 @@
 CC = gcc
-CFLAGS = -O3 -fopenmp -fpic -lm -shared
-
-LD = gfortran
-LDFLAGS = -shared
+CFLAGS = -O3 -mtune=native -fopenmp -fpic -lm -shared
 
 all: libvv10.so
 
