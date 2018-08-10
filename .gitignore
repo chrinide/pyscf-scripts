@@ -1,4 +1,5 @@
 *.pyc
+*.wfn
 *.so
 *.mod
 *.chk
