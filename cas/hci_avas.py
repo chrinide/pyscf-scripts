@@ -4,20 +4,42 @@ import numpy, sys
 sys.path.append('../tools')
 from pyscf import gto, scf, mcscf, symm, fci, lib, hci, ao2mo
 from pyscf.tools import molden
+from pyscf.lib import logger
 import avas, wfn_format
 
-class AsFCISolver(object):
+# TODO: UPdate for excited states and ss
+
+class AsFCISolver(lib.StreamObject):
     def __init__(self, mol):
+        self.stdout = mol.stdout
+        self.verbose = mol.verbose
         self.myci = None
         self.mol = mol
+        self.shift = 0.2
+        self.ss = 0.0000 
+        self.ci_coeff_cutoff = .5e-3
+        self.select_cutoff = .5e-3
+        self.conv_tol = 1e-9
+        self.conv_ndet_tol = 0.001
+        self.nroots = 1
+        self.max_iter = 100
+
+    def dump_flags(self, verbose=None):
+        logger.info(self, '\nStarting heat-bath CI algorithm...')
+        logger.info(self, 'Selection threshold:                  %8.5e',    self.select_cutoff)
+        logger.info(self, 'CI coefficient cutoff:                %8.5e',    self.ci_coeff_cutoff)
+        logger.info(self, 'Number of determinants tolerance:     %8.5e',    self.conv_ndet_tol)
+        logger.info(self, 'Number of electrons:                  %s',       self.mol.nelec)
+        logger.info(self, 'Number of roots:                      %3d',      self.nroots)
 
     def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
-        self.myci = hci.SelectedCI(mol)
-        self.myci = hci.fix_spin(self.myci, ss=0.00000, shift=0.8)
-        self.myci.select_cutoff = 1e-3
-        self.myci.ci_coeff_cutoff = 1e-3
-        self.myci.conv_ndet_tol = 1e-3
-        self.myci.max_iter = 100
+        self.myci = hci.SelectedCI(self.mol)
+        self.myci = hci.fix_spin(self.myci, ss=self.ss, shift=self.shift)
+        self.myci.select_cutoff = self.select_cutoff
+        self.myci.ci_coeff_cutoff = self.ci_coeff_cutoff
+        self.myci.conv_ndet_tol = self.conv_ndet_tol
+        self.myci.nroots = self.nroots
+        self.myci.max_iter = self.max_iter
         e, civec = self.myci.kernel(h1, h2, norb, nelec, verbose=0)
         return e[0]+ecore, civec[0]
 
@@ -65,7 +87,7 @@ aolst = aolst1 + aolst2
 ncas, nelecas, mo = avas.kernel(mf, aolst, threshold_occ=0.1, threshold_vir=0.01, minao='minao', ncore=ncore)
 
 mc = mcscf.CASSCF(mf, ncas, nelecas)
-mc.fcisolver = AsFCISolver()
+mc.fcisolver = AsFCISolver(mol)
 mc.max_cycle_macro = 250
 mc.max_cycle_micro = 7
 mc.chkfile = name+'.chk'
