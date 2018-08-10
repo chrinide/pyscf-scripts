@@ -9,7 +9,6 @@
 *.molden
 *.xyz
 *.com
-*.out
 *.log
 *.inp
 *.in
