@@ -21,7 +21,7 @@ mf = scf.RHF(mol)
 ehf = mf.scf()
 
 pt2 = mp.MP2(mf)
-pt2.frozen = 1
+pt2.frozen = 2
 pt2.kernel()
 
 mc = mcscf.CASSCF(mf, 10, 10)

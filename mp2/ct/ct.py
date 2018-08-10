@@ -26,11 +26,11 @@ mf.chkfile = name+'.chk'
 mf.kernel()
 
 pt2 = mp.MP2(mf)
-pt2.frozen = 1
+pt2.frozen = 2
 pt2.kernel()
 
 mo = mf.mo_coeff
-mc = mcscf.CASSCF(mf, 10, 10)
+mc = mcscf.CASSCF(mf, 2, 2)
 mc.max_cycle_macro = 250
 mc.max_cycle_micro = 7
 mc.chkfile = name+'.chk'
