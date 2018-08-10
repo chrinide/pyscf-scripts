@@ -3,7 +3,7 @@
 import numpy
 import scipy.linalg
 
-from pyscf import gto, scf, mcscf, ao2mo
+from pyscf import gto, scf, mcscf, ao2mo,mp
 from pyscf.lib import logger
 from pyscf import lib
 einsum = lib.einsum
@@ -19,6 +19,10 @@ mol.build()
     
 mf = scf.RHF(mol)
 ehf = mf.scf()
+
+pt2 = mp.MP2(mf)
+pt2.frozen = 1
+pt2.kernel()
 
 mc = mcscf.CASSCF(mf, 10, 10)
 emc = mc.mc1step()[0]

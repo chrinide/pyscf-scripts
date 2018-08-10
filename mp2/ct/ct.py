@@ -26,6 +26,7 @@ mf.chkfile = name+'.chk'
 mf.kernel()
 
 pt2 = mp.MP2(mf)
+pt2.frozen = 1
 pt2.kernel()
 
 mo = mf.mo_coeff
