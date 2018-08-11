@@ -1,0 +1,141 @@
+#INFO: **** input file is /home/jluis/src/git/scripts/hf/uhfno.py ****
+#!/usr/bin/env python
+
+import numpy, scipy
+from functools import reduce
+from pyscf import gto, scf, dft, lib
+
+mol = gto.Mole()
+mol.verbose = 4
+mol.atom = '''
+O      0.000000      0.000000      0.118351
+H      0.000000      0.761187     -0.469725
+H      0.000000     -0.761187     -0.469725
+'''
+mol.basis = 'aug-cc-pvtz'
+mol.charge = 1
+mol.spin = 1
+mol.build()
+
+mf = dft.UKS(mol)
+mf.xc = 'pbe0'
+mf.grids.level = 4
+mf.scf()
+
+dm = mf.make_rdm1()
+d = dm[0]+dm[1]
+s = mol.intor('int1e_ovlp')
+sl = scipy.linalg.sqrtm(s)
+
+dt = reduce(numpy.dot, (sl,d,sl))
+e, v = numpy.linalg.eig(dt)
+natocc, natorb = numpy.linalg.eig(-dt)
+natocc = natocc.real
+natorb = natorb.real
+for i, k in enumerate(numpy.argmax(abs(natorb), axis=0)):
+    if natorb[k,i] < 0:
+        natorb[:,i] *= -1
+#natorb = numpy.dot(mc.mo_coeff[:,:nmo], natorb)
+natocc = -natocc
+tol = 1e-8
+lib.logger.info(mf, '%s' % natocc[abs(natocc)>tol])
+
+#INFO: ******************** input file end ********************
+
+
+System: ('Linux', 'silicio', '3.16.0-4-amd64', '#1 SMP Debian 3.16.51-3 (2017-12-13)', 'x86_64', '')  Threads 12
+Python 2.7.14 (default, Apr  9 2018, 16:34:43) 
+[GCC 7.3.0]
+numpy 1.15.0  scipy 1.1.0
+Date: Sat Aug 11 02:16:02 2018
+PySCF version 1.5.2
+PySCF path  /home/jluis/src/pyscf/pyscf
+GIT ORIG_HEAD 2687853e253f5eea52524d158888a4513808b96e
+GIT HEAD      ref: refs/heads/master
+GIT master branch  b542c01b5c1fe9c958fb5788df071e2bb87a7e31
+
+[ENV] PYSCF_TMPDIR /scratch-ssd/jluis
+[CONFIG] conf_file None
+[INPUT] verbose = 4
+[INPUT] num. atoms = 3
+[INPUT] num. electrons = 9
+[INPUT] charge = 1
+[INPUT] spin (= nelec alpha-beta = 2S) = 1
+[INPUT] symmetry False subgroup None
+[INPUT] Mole.unit = angstrom
+[INPUT]  1 O      0.000000000000   0.000000000000   0.118351000000 AA    0.000000000000   0.000000000000   0.223650976568 Bohr
+[INPUT]  2 H      0.000000000000   0.761187000000  -0.469725000000 AA    0.000000000000   1.438434959579  -0.887651603861 Bohr
+[INPUT]  3 H      0.000000000000  -0.761187000000  -0.469725000000 AA    0.000000000000  -1.438434959579  -0.887651603861 Bohr
+
+nuclear repulsion = 9.14985900416406
+number of shells = 31
+number of NR pGTOs = 108
+number of NR cGTOs = 92
+basis = aug-cc-pvtz
+ecp = {}
+CPU time:         2.82
+
+
+******** <class 'pyscf.dft.uks.UKS'> flags ********
+method = UKS-UHF
+initial guess = minao
+damping factor = 0
+level shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+DIIS start cycle = 1
+DIIS space = 8
+SCF tol = 1e-09
+SCF gradient tol = None
+max. SCF cycles = 50
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /scratch-ssd/jluis/tmpdjkAtQ
+max_memory 64000 MB (current use 68 MB)
+number electrons alpha = 5  beta = 4
+XC functionals = pbe0
+small_rho_cutoff = 1e-07
+radial grids: 
+    Treutler-Ahlrichs (JCP 102, 346 (M4)) radial grids
+    
+becke partition: Becke, JCP, 88, 2547 (1988)
+pruning grids: <function nwchem_prune at 0x2ab9cbb412a8>
+grids dens level: 4
+symmetrized grids: False
+atomic radii adjust function: <function treutler_atomic_radii_adjust at 0x2ab9cbb411b8>
+Set gradient conv threshold to 3.16228e-05
+tot grids = 60828
+init E= -76.2927874995971
+  alpha nocc = 5  HOMO = -0.431876898657604  LUMO = -0.0317197063870405
+  beta  nocc = 4  HOMO = -0.513749296136298  LUMO = -0.431876898657603
+
+WARN: system HOMO -0.431876898657603 >= system LUMO -0.431876898657603
+
+cycle= 1 E= -75.8956918222463  delta_E= 0.397  |g|= 0.206  |ddm|= 0.649
+  alpha nocc = 5  HOMO = -0.929147121928919  LUMO = -0.301803010277523
+  beta  nocc = 4  HOMO = -0.897470775863844  LUMO = -0.650498162244975
+cycle= 2 E= -75.9137762300322  delta_E= -0.0181  |g|= 0.106  |ddm|= 0.176
+  alpha nocc = 5  HOMO = -0.87850966811276  LUMO = -0.276639243792256
+  beta  nocc = 4  HOMO = -0.848342251428787  LUMO = -0.586131920246048
+cycle= 3 E= -75.9165754134148  delta_E= -0.0028  |g|= 0.0441  |ddm|= 0.061
+  alpha nocc = 5  HOMO = -0.8912470855156  LUMO = -0.275828394860899
+  beta  nocc = 4  HOMO = -0.86111670290975  LUMO = -0.595447135718136
+cycle= 4 E= -75.9171837101031  delta_E= -0.000608  |g|= 0.00903  |ddm|= 0.0227
+  alpha nocc = 5  HOMO = -0.888145690290929  LUMO = -0.27531225906111
+  beta  nocc = 4  HOMO = -0.857557444025202  LUMO = -0.591756974894844
+cycle= 5 E= -75.9172146163339  delta_E= -3.09e-05  |g|= 0.00101  |ddm|= 0.0061
+  alpha nocc = 5  HOMO = -0.888539897348571  LUMO = -0.275406180804489
+  beta  nocc = 4  HOMO = -0.857703529591085  LUMO = -0.591837403054552
+cycle= 6 E= -75.9172156954903  delta_E= -1.08e-06  |g|= 0.000232  |ddm|= 0.00153
+  alpha nocc = 5  HOMO = -0.888555258301736  LUMO = -0.275363921207082
+  beta  nocc = 4  HOMO = -0.857625600564228  LUMO = -0.591806521560934
+cycle= 7 E= -75.9172157630191  delta_E= -6.75e-08  |g|= 1.96e-05  |ddm|= 0.000427
+  alpha nocc = 5  HOMO = -0.888557788267076  LUMO = -0.275360106270593
+  beta  nocc = 4  HOMO = -0.85762296918234  LUMO = -0.591806663742601
+cycle= 8 E= -75.9172157634012  delta_E= -3.82e-10  |g|= 2.05e-06  |ddm|= 2.42e-05
+  alpha nocc = 5  HOMO = -0.888557832439437  LUMO = -0.275360017306141
+  beta  nocc = 4  HOMO = -0.857623233320093  LUMO = -0.591806930422337
+Extra cycle  E= -75.9172157634042  delta_E= -2.98e-12  |g|= 5.75e-07  |ddm|= 2.24e-06
+converged SCF energy = -75.9172157634042  <S^2> = 0.75294275  2S+1 = 2.0029406
+[1.99904516e+00 1.99999930e+00 1.99980701e+00 1.00000000e+00
+ 1.99967662e+00 9.54835915e-04 1.92986621e-04 3.23379407e-04
+ 7.01433140e-07]
