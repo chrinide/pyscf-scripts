@@ -6,8 +6,6 @@ from pyscf.tools import molden
 from pyscf.data import nist
 einsum = lib.einsum
 
-nroots = 3
-
 mol = gto.Mole()
 mol.basis = '631g'
 mol.atom = 'H 0 0 0; F 0 0 1.1'
@@ -33,6 +31,8 @@ cv = mo_vir
 eo = mf.mo_energy[ncore:ncore+nocc]
 ev = mf.mo_energy[ncore+nocc:]
 
+nroots = nocc*nvir
+
 v_ijab = ao2mo.general(mf._eri, (co,co,cv,cv), compact=False)
 v_ijab = v_ijab.reshape(nocc,nocc,nvir,nvir)
 v_iajb = ao2mo.general(mf._eri, (co,cv,co,cv), compact=False)
@@ -41,6 +41,7 @@ v_iajb = v_iajb.reshape(nocc,nvir,nocc,nvir)
 def diagonalize(a, b, nroots=nroots):
     e, z = numpy.linalg.eig(numpy.bmat([[ a       , b       ],
                                         [-b.conj(),-a.conj()]]))   
+    print e                                        
     lowest_e = numpy.sort(e[e > 0])[:nroots]
     return lowest_e, z
 

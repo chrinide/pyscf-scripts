@@ -6,15 +6,8 @@ from pyscf.pbc import df  as pbcdf
 from pyscf.pbc import scf as pbcscf
 from pyscf.pbc import gto as pbcgto
 from pyscf.pbc import dft as pbcdft
-from pyscf.pbc.tools import pyscf_ase
-from pyscf.pbc.tools import lattice
-from pyscf.pbc import tools
-from pyscf.pbc.tools.pbc import super_cell
-from pyscf import mcscf, lo, lib, ao2mo
-from pyscf.tools import wfn_format
-from pyscf.mcscf import avas
+from pyscf import lo, lib, ao2mo
 from pyscf.lo import orth
-from ase.lattice.cubic import Diamond
 einsum = lib.einsum
 
 name = 'gamma-delta-hf'
@@ -45,28 +38,28 @@ mf.kernel()
 nao = cell.nao_nr()
 dm = mf.make_rdm1()
 mo = mf.mo_coeff
-c = numpy.eye(cell.nao_nr())
 s = cell.pbc_intor('cint1e_ovlp_sph')
 
 #c = lo.nao.nao(cell, mf, restore=False)
+#c = numpy.eye(cell.nao_nr())
 #mo = numpy.linalg.solve(c, mf.mo_coeff)
 #dm = mf.make_rdm1(mo, mf.mo_occ)
 
 pop = einsum('ij,ji->',s,dm)
-print('Population : %s' % pop)
+lib.logger.info(mf, 'Population : %s' % pop)
 
 pairs1 = einsum('ij,kl,ij,kl->',dm,dm,s,s)*0.5 # J
 pairs2 = einsum('ij,kl,li,kj->',dm,dm,s,s)*0.25 # XC
 pairs = (pairs1 - pairs2)
-print('Coulomb Pairs : %12.6f' % (pairs1))
-print('XC Pairs : %12.6f' % (pairs2))
-print('Pairs : %12.6f' % pairs)
+lib.logger.info(mf, 'Coulomb Pairs : %12.6f' % (pairs1))
+lib.logger.info(mf, 'XC Pairs : %12.6f' % (pairs2))
+lib.logger.info(mf, 'Pairs : %12.6f' % pairs)
 
 ##############################################################################
 ##############################################################################
 label = cell.spheric_labels(False)
-print('Monocentric terms')
-print('#################')
+lib.logger.info(mf,'\nPopulation and charges in NAO basis')
+lib.logger.info(mf,'###################################')
 pop = einsum('ij,ji->i', dm,s)
 chg1 = numpy.zeros(cell.natm)
 qq1 = numpy.zeros(cell.natm)
@@ -75,14 +68,15 @@ for i, s1 in enumerate(label):
 for ia in range(cell.natm):
     symb = cell.atom_symbol(ia)
     qq1[ia] = cell.atom_charge(ia)-chg1[ia]
-    print('Pop, Q, of %d %s = %12.6f %12.6f' % (ia, symb, chg1[ia], qq1[ia]))
+    lib.logger.info(mf, 'Pop, Q, of %d %s = %12.6f %12.6f' \
+    % (ia+1, symb, chg1[ia], qq1[ia]))
 
-print('\nSum rules test')
-print('##############')
-print('Sum of charges : %12.6f' % sum(chg1))
+lib.logger.info(mf,'\nSume rules test')
+lib.logger.info(mf,'###############')
+lib.logger.info(mf,'Sum of charges : %12.6f' % sum(chg1))
 
-print('\nBicentric terms')
-print('###############')
+lib.logger.info(mf,'\nLocalization/delocalication in NAO basis')
+lib.logger.info(mf,'########################################')
 pairs1 = einsum('ij,kl,ij,kl->ik',dm,dm,s,s)*0.5 # J
 pairs2 = einsum('ij,kl,li,kj->ik',dm,dm,s,s)*0.25 # XC
 pop = (pairs1 - pairs2)
@@ -116,13 +110,17 @@ for ia in range(cell.natm):
             checkxc = checkxc + factor*chg2[ia,ib]
             checkij = checkij + factor*chg[ia,ib]
             check = check + factor*chg[ia,ib]
-        print('Lambda-Delta, Pairs of  %d %d %s %s = %12.6f %12.6f ' % (ia, ib, symb1, symb2, 2*factor*chg2[ia,ib], chg[ia,ib]))
+        lib.logger.info(mf, \
+        'Lambda-Delta, Pairs of  %d %d %s %s = %12.6f %12.6f' \
+        % (ia+1, ib+1, symb1, symb2, 2.0*factor*chg2[ia,ib], \
+        chg[ia,ib]))
 
-print('\n##############')
-print('Sum rules test')
-print('##############')
-print('Total Coulomb pairs : %12.6f' % checkj)
-print('Total XC pairs : %12.6f' % checkxc)
-print('Total intra pairs : %12.6f' % checkii)
-print('Total inter pairs : %12.6f' % checkij)
-print('Total pairs : %12.6f' % check)
+lib.logger.info(mf, '\n##############')
+lib.logger.info(mf, 'Sum rules test')
+lib.logger.info(mf, '##############')
+lib.logger.info(mf, 'Total Coulomb pairs : %12.6f' % checkj)
+lib.logger.info(mf, 'Total XC pairs : %12.6f' % checkxc)
+lib.logger.info(mf, 'Total intra pairs : %12.6f' % checkii)
+lib.logger.info(mf, 'Total inter pairs : %12.6f' % checkij)
+lib.logger.info(mf, 'Total pairs : %12.6f' % check)
+
