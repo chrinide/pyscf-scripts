@@ -1,0 +1,19 @@
+h2o.wfn uhf 5 5 
+nosymmetry
+tes
+  xcdft 0 0 450
+  epsiscp 0.220
+  radialquad 7
+  rmapping 2
+  lmax 10
+  nr 551
+  lebedev 5810
+  betasphere
+  betarad 1 0.180
+  betarad 8 0.380
+  radialquadbeta 7
+  rmappingbeta 3
+  lmaxbeta 8
+  nrb 451
+  lebedevbeta 3074
+endtes
