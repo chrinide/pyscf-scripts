@@ -18,7 +18,7 @@ from pyscf.pbc import df
 from pyscf.pbc.tools import pbc as tools_pbc
 
 
-def get_R_vec(mol, abs_kpts, kmesh):
+def get_R_vec(cell, abs_kpts, kmesh):
 
     '''
     get supercell R vector based on k mesh
@@ -130,7 +130,7 @@ def k2gamma(kmf, abs_kpts, kmesh, realize = True, real_split = False, tol_deg = 
     C_gamma = C_gamma.reshape((NR*Nao, Nk*Nmo))
 
     # supercell object
-    sc = tools_pbc.super_cell(cell, kmesh)
+    sc = tools_pbc.super_cell(kmf.cell, kmesh)
     sc.verbose = 0
     kmf_sc = pscf.KRHF(sc, [[0.0,0.0,0.0]])
     kmf_sc.with_df = df.FFTDF(sc, [[0.0, 0.0, 0.0]]) 
