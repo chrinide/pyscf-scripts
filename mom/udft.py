@@ -2,7 +2,7 @@
 
 import numpy
 from pyscf import gto, scf, dft
-from pyscf.tools import wfn_format
+from pyscf.tools import molden
 
 name = 'udft'
 
@@ -42,10 +42,12 @@ coeffb = mf.mo_coeff[1][:,mf.mo_occ[1]>0]
 energyb = mf.mo_energy[1][mf.mo_occ[1]>0]
 occb = mf.mo_occ[1][mf.mo_occ[1]>0]
 
-with open(name+'.wfn', 'w') as f2:
-    wfn_format.write_mo(f2, mol, coeffa, mo_energy=energya, mo_occ=occa)
-    wfn_format.write_mo(f2, mol, coeffb, mo_energy=energyb, mo_occ=occb)
-    
+coeff = numpy.hstack([occa,occb])
+occ = numpy.hstack([coeffa,coeffb])
+with open(name+'.mol', 'w') as f2:
+    molden.header(mol, f2)
+    molden.orbital_coeff(mol, f2, coeff, occ=occ)
+
 norb = mf.mo_energy[0].size
 nmoa = energya.size
 nmob = energyb.size

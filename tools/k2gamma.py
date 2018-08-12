@@ -132,7 +132,8 @@ def k2gamma(kmf, abs_kpts, kmesh, realize = True, real_split = False, tol_deg = 
     # supercell object
     sc = tools_pbc.super_cell(cell, kmesh)
     sc.verbose = 0
-    kmf_sc = pscf.KRHF(sc, [[0.0,0.0,0.0]]).density_fit() # TODO spin polarize ? DF or not?
+    kmf_sc = pscf.KRHF(sc, [[0.0,0.0,0.0]])
+    kmf_sc.with_df = df.FFTDF(sc, [[0.0, 0.0, 0.0]]) 
     S_sc = kmf_sc.get_ovlp()[0].real
    
     # make MO to be real
@@ -180,23 +181,28 @@ if __name__ == '__main__':
     np.set_printoptions(3,linewidth=1000)
 
     cell = pgto.Cell()
-    cell.atom = '''
-    H 0.0 0.0 0.0
-    H 1.8 0.0 0.0
-    '''
-    cell.basis = 'cc-pvdz'
-    cell.a = np.array([[3.6, 0.0, 0.0], [0.0, 3.6, 0.0],[0.0, 0.0, 20.0]])
-    cell.precision = 1e-10
+    cell.spin = 0
+    cell.symmetry = 0
+    cell.charge = 0
     cell.verbose = 4
-    cell.unit = 'B'
+    cell.a = '''
+      0.000000000000000   2.014000000000000   2.014000000000000
+      2.014000000000000   0.000000000000000   2.014000000000000
+      2.014000000000000   2.014000000000000   0.000000000000000
+    '''
+    cell.atom = '''
+    Li  0.000000000000000   0.000000000000000   0.000000000000000 
+    F   2.014000000000000   2.014000000000000   2.014000000000000 
+    '''
+    cell.basis = 'gth-szv'
+    cell.pseudo = 'gth-pade'
     cell.build()
     
-    kmesh = [2, 2, 1]
+    kmesh = [2, 2, 2]
     abs_kpts = cell.make_kpts(kmesh)
-    scaled_kpts = cell.get_scaled_kpts(abs_kpts)
-    kmf = pscf.KRHF(cell, abs_kpts).density_fit()
-    gdf = df.GDF(cell, abs_kpts)
-    kmf.with_df = gdf
+    abs_kpts -= abs_kpts[0]
+    kmf = pscf.KRHF(cell, abs_kpts)
+    kmf.with_df = df.FFTDF(cell, abs_kpts)
     kmf.verbose = 4
     ekpt = kmf.run()
 
@@ -215,9 +221,8 @@ if __name__ == '__main__':
 
     # The following is to check whether the MO is correctly coverted: 
     sc = tools_pbc.super_cell(cell, kmesh)
-    kmf_sc2 = pscf.KRHF(sc, [[0.0, 0.0, 0.0]]).density_fit()
-    gdf = df.GDF(sc, [[0.0, 0.0, 0.0]])
-    kmf_sc2.with_df = gdf
+    kmf_sc2 = pscf.KRHF(sc, [[0.0, 0.0, 0.0]])
+    kmf_sc2.with_df = df.FFTDF(sc, [[0.0, 0.0, 0.0]]) 
     s = kmf_sc2.get_ovlp()[0]
 
     print "Run supercell gamma point calculation..." 
