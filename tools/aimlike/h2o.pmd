@@ -1,0 +1,18 @@
+h2o.wfn
+threads 12
+tes
+  aom
+  epsiscp 0.220
+  rmaxsurf 14
+  radialquad 7
+  rmapping 2
+  nr 751
+  lebedev 5810
+  betasphere
+  betarad 1 0.180
+  betarad 8 0.480
+  radialquadbeta 7
+  rmappingbeta 3
+  nrb 551
+  lebedevbeta 5810
+endtes

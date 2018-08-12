@@ -1,4 +1,5 @@
 *.pyc
+*.mull
 *.chk
 *.h5
 *.wfn

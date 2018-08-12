@@ -1,0 +1,230 @@
+#INFO: **** input file is /home/jluis/calc/mulliken/aimlike/h2o.py ****
+#!/usr/bin/env python
+
+import numpy, sys
+from pyscf import gto, scf, ao2mo
+from pyscf.tools import wfn_format
+
+name = 'h2o'
+
+mol = gto.Mole()
+mol.basis = 'cc-pvtz'
+mol.atom = open('../geom/h2o.xyz').read()
+mol.verbose = 4
+mol.spin = 0
+mol.symmetry = 1
+mol.charge = 0
+mol.build()
+
+mf = scf.RHF(mol)
+ehf = mf.kernel()
+
+nmo = mol.nelectron/2
+coeff = mf.mo_coeff[:,mf.mo_occ>0]
+occ = mf.mo_occ[mf.mo_occ>0]
+#
+rdm1 = numpy.diag(occ)
+x, y = rdm1.nonzero()
+nonzero = zip(x,y)
+ifile = name + '.rdm1'
+with open(ifile, 'w') as f2:
+    for i, j in nonzero:
+        f2.write('%i %i %.16f\n' % (i, j, rdm1[i,j]))
+#        
+rdm2_xc = numpy.zeros((nmo,nmo,nmo,nmo))
+for i in range(nmo):
+    for j in range(nmo):
+        rdm2_xc[i,j,j,i] -= 2
+x, y, z, w = rdm2_xc.nonzero()
+nonzero = zip(x,y,z,w)
+ifile = name + '.rdm2_xc'
+with open(ifile, 'w') as f2:
+    for i, j, k, l in nonzero:
+        f2.write('%i %i %i %i %.16f\n' % (i, j, k, l, rdm2_xc[i,j,k,l]))
+
+wfn_file = name + '.wfn'
+with open(wfn_file, 'w') as f2:
+    wfn_format.write_mo(f2, mol, coeff, occ)
+
+##############################################################################
+s = mol.intor('cint1e_ovlp_sph')
+s = reduce(numpy.dot, (coeff.T,s,coeff))
+x, y = s.nonzero()
+nonzero = zip(x,y)
+ifile = name + '.overlap'
+with open(ifile, 'w') as f2:
+    for i, j in nonzero:
+        f2.write('%i %i %.16f\n' % (i, j, s[i,j]))
+#       
+t = mol.intor('cint1e_kin_sph')
+t = reduce(numpy.dot, (coeff.T,t,coeff))
+x, y = t.nonzero()
+nonzero = zip(x,y)
+ifile = name + '.kinetic'
+with open(ifile, 'w') as f2:
+    for i, j in nonzero:
+        f2.write('%i %i %.16f\n' % (i, j, t[i,j]))
+#        
+v = mol.intor('cint1e_nuc_sph')
+v = reduce(numpy.dot, (coeff.T,v,coeff))
+x, y = v.nonzero()
+nonzero = zip(x,y)
+ifile = name + '.nucelec'
+with open(ifile, 'w') as f2:
+    for i, j in nonzero:
+        f2.write('%i %i %.16f\n' % (i, j, v[i,j]))
+#        
+enuc = mol.energy_nuc() 
+ekin = numpy.einsum('ij,ji->',t,rdm1)
+pop = numpy.einsum('ij,ji->',s,rdm1)
+elnuce = numpy.einsum('ij,ji->',v,rdm1)
+print('Population : %12.6f' % pop)
+print('Kinetic energy : %12.6f' % ekin)
+print('Nuclear Atraction energy : %12.6f' % elnuce)
+print('Nuclear Repulsion energy : %12.6f' % enuc)
+##############################################################################
+
+##############################################################################
+eri_mo = ao2mo.kernel(mf._eri, coeff, compact=False)
+eri_mo = eri_mo.reshape(nmo,nmo,nmo,nmo)
+x, y, z, w = eri_mo.nonzero()
+nonzero = zip(x,y,z,w)
+ifile = name + '.eri'
+with open(ifile, 'w') as f2:
+    for i, j, k, l in nonzero:
+        f2.write('%i %i %i %i %.16f\n' % (i, j, k, l, eri_mo[i,j,k,l]))
+#        
+bie1 = numpy.einsum('ijkl,ij,kl',eri_mo,rdm1,rdm1)*0.5 # J
+bie2 = numpy.einsum('ijkl,ijkl',eri_mo,rdm2_xc)*0.5 # XC
+pairs1 = numpy.einsum('ij,kl,ij,kl->',rdm1,rdm1,s,s) # J
+pairs2 = numpy.einsum('ijkl,ij,kl->',rdm2_xc,s,s) # XC
+pairs = (pairs1 + pairs2)
+print('Coulomb Pairs : %12.6f' % (pairs1))
+print('XC Pairs : %12.6f' % (pairs2))
+print('Pairs : %12.6f' % pairs)
+print('Should be : %i' % (mol.nelectron*(mol.nelectron-1)))
+print('J energy : %12.6f' % bie1)
+print('XC energy : %12.6f' % bie2)
+print('EE energy : %12.6f' % (bie1+bie2))
+##############################################################################
+
+etot = enuc + ekin + elnuce + bie1 + bie2
+print('Total energy : %12.6f' % etot)
+#INFO: ******************** input file end ********************
+
+
+System: ('Linux', 'silicio', '3.16.0-4-amd64', '#1 SMP Debian 3.16.43-2 (2017-04-30)', 'x86_64', '')  Threads 12
+Python 2.7.9 (default, Jun 29 2016, 13:08:31) 
+[GCC 4.9.2]
+numpy 1.14.0.dev0+a2bddfa  scipy 1.1.0.dev0+c99bf46
+Date: Sat Feb 10 04:46:09 2018
+PySCF version 1.4.3
+PySCF path  /home/jluis/src/pyscf/pyscf
+GIT ORIG_HEAD f1c87ae41fdbf5312f35944c638f7cc503d7e6b9
+GIT HEAD      ref: refs/heads/master
+GIT master branch  f1c87ae41fdbf5312f35944c638f7cc503d7e6b9
+PYSCF_TMPDIR /scratch-ssd/jluis
+
+[INPUT] VERBOSE 4
+[INPUT] num atoms = 3
+[INPUT] num electrons = 10
+[INPUT] charge = 0
+[INPUT] spin (= nelec alpha-beta = 2S) = 0
+[INPUT] symmetry 1 subgroup None
+[INPUT]  1 O      0.000000000000   0.000000000000   0.117300000000 AA    0.000000000000   0.000000000000   0.221664874411 Bohr
+[INPUT]  2 H      0.757200000000   0.000000000000  -0.469200000000 AA    1.430900621521   0.000000000000  -0.886659497646 Bohr
+[INPUT]  3 H     -0.757200000000   0.000000000000  -0.469200000000 AA   -1.430900621521   0.000000000000  -0.886659497646 Bohr
+[INPUT] ---------------- BASIS SET ---------------- 
+[INPUT] l, kappa, [nprim/nctr], expnt,             c_1 c_2 ...
+[INPUT] H
+[INPUT] 0    0    [3    /1   ]  33.87             0.006068
+                                5.095             0.045308
+                                1.159             0.202822
+[INPUT] 0    0    [1    /1   ]  0.3258               1
+[INPUT] 0    0    [1    /1   ]  0.1027               1
+[INPUT] 1    0    [1    /1   ]  1.407                1
+[INPUT] 1    0    [1    /1   ]  0.388                1
+[INPUT] 2    0    [1    /1   ]  1.057                1
+[INPUT] O
+[INPUT] 0    0    [8    /2   ]  15330             0.000508 -0.000115
+                                2299              0.003929 -0.000895
+                                522.4             0.020243 -0.004636
+                                147.3             0.079181 -0.018724
+                                47.55             0.230687 -0.058463
+                                16.76             0.433118 -0.136463
+                                6.207             0.35026 -0.17574
+                                0.6882            -0.008154 0.603418
+[INPUT] 0    0    [1    /1   ]  1.752                1
+[INPUT] 0    0    [1    /1   ]  0.2384               1
+[INPUT] 1    0    [3    /1   ]  34.46             0.015928
+                                7.749             0.09974
+                                2.28              0.310492
+[INPUT] 1    0    [1    /1   ]  0.7156               1
+[INPUT] 1    0    [1    /1   ]  0.214                1
+[INPUT] 2    0    [1    /1   ]  2.314                1
+[INPUT] 2    0    [1    /1   ]  0.645                1
+[INPUT] 3    0    [1    /1   ]  1.428                1
+nuclear repulsion = 9.18953376293491
+point group symmetry = C2v
+num. orbitals of irrep A1 = 23
+num. orbitals of irrep A2 = 7
+num. orbitals of irrep B1 = 17
+num. orbitals of irrep B2 = 11
+number of shells = 21
+number of NR pGTOs = 74
+number of NR cGTOs = 58
+basis = cc-pvtz
+ecp = {}
+CPU time:         0.23
+
+
+******** <class 'pyscf.scf.hf_symm.RHF'> flags ********
+method = RHF
+initial guess = minao
+damping factor = 0
+level shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+DIIS start cycle = 1
+DIIS space = 8
+SCF tol = 1e-09
+SCF gradient tol = None
+max. SCF cycles = 50
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /scratch-ssd/jluis/tmpzUzjZu
+max_memory 64000 MB (current use 65 MB)
+Freeze 0 electrons in irreps []
+    10 free electrons in irreps A1 A2 B1 B2
+Set gradient conv threshold to 3.16228e-05
+init E= -75.8790280748143
+HOMO (B2) = -0.47850150694098  LUMO (A1) = 0.0772300349993192
+cycle= 1 E= -76.0205154712383  delta_E= -0.141  |g|= 0.443  |ddm|=    1
+HOMO (B2) = -0.42871941419767  LUMO (A1) = 0.141396274694546
+cycle= 2 E= -76.0473554859622  delta_E= -0.0268  |g|= 0.253  |ddm|= 0.313
+HOMO (B2) = -0.513065450956783  LUMO (A1) = 0.138308355707252
+cycle= 3 E= -76.0569051324047  delta_E= -0.00955  |g|= 0.0319  |ddm|= 0.101
+HOMO (B2) = -0.503363203746428  LUMO (A1) = 0.142168699975377
+cycle= 4 E= -76.0571115129168  delta_E= -0.000206  |g|= 0.00587  |ddm|= 0.0194
+HOMO (B2) = -0.504148132895277  LUMO (A1) = 0.142258317658488
+cycle= 5 E= -76.0571267760025  delta_E= -1.53e-05  |g|= 0.00103  |ddm|= 0.00858
+HOMO (B2) = -0.504382550380004  LUMO (A1) = 0.142210178644514
+cycle= 6 E= -76.0571274010995  delta_E= -6.25e-07  |g|= 0.000178  |ddm|= 0.00144
+HOMO (B2) = -0.504442748881738  LUMO (A1) = 0.142204692194171
+cycle= 7 E= -76.0571274200133  delta_E= -1.89e-08  |g|= 2.46e-05  |ddm|= 0.000258
+HOMO (B2) = -0.504442030789799  LUMO (A1) = 0.142205107196563
+cycle= 8 E= -76.0571274202717  delta_E= -2.58e-10  |g|= 2.19e-06  |ddm|= 3.74e-05
+HOMO (B2) = -0.504441473900585  LUMO (A1) = 0.142205241464674
+Extra cycle  E= -76.0571274202737  delta_E= -2e-12  |g|= 8.8e-07  |ddm|= 3.75e-06
+converged SCF energy = -76.0571274202737
+Population :    10.000000
+Kinetic energy :    76.003603
+Nuclear Atraction energy :  -199.113315
+Nuclear Repulsion energy :     9.189534
+Coulomb Pairs :   100.000000
+XC Pairs :   -10.000000
+Pairs :    90.000000
+Should be : 90
+J energy :    46.821469
+XC energy :    -8.958418
+EE energy :    37.863050
+Total energy :   -76.057127
