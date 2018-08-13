@@ -14,7 +14,7 @@ H      0.000000      0.761187     -0.469725
 H      0.000000     -0.761187     -0.469725
 '''
 mol.basis = 'aug-cc-pvdz'
-mol.symmetry = 1
+mol.symmetry = 0
 mol.build()
 
 a = dft.UKS(mol)

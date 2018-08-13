@@ -7,6 +7,7 @@ from pyscf.tools import wfn_format
 name = 'h2o'
 
 mol = gto.Mole()
+mol.symmetry = 0
 mol.verbose = 4
 mol.atom = [
     ["O" , (0. , 0.     , 0.)],
