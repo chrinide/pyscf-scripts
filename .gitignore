@@ -17,3 +17,5 @@
 *.in
 tmp/
 *.o
+test.py
+test.out
