@@ -1,19 +1,30 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, sys
+sys.path.append('../tools')
 from pyscf import gto, scf, dft
 from pyscf.tools import molden
+import imom
 
-name = 'udft'
+name = 'i-mom'
 
 mol = gto.Mole()
 mol.verbose = 4
 mol.atom = '''
-O      0.000000      0.000000      0.118351
-H      0.000000      0.761187     -0.469725
-H      0.000000     -0.761187     -0.469725
+c   1.217739890298750 -0.703062453466927  0.000000000000000
+h   2.172991468538160 -1.254577209307266  0.000000000000000
+c   1.217739890298750  0.703062453466927  0.000000000000000
+h   2.172991468538160  1.254577209307266  0.000000000000000
+c   0.000000000000000  1.406124906933854  0.000000000000000
+h   0.000000000000000  2.509154418614532  0.000000000000000
+c  -1.217739890298750  0.703062453466927  0.000000000000000
+h  -2.172991468538160  1.254577209307266  0.000000000000000
+c  -1.217739890298750 -0.703062453466927  0.000000000000000
+h  -2.172991468538160 -1.254577209307266  0.000000000000000
+c   0.000000000000000 -1.406124906933854  0.000000000000000
+h   0.000000000000000 -2.509154418614532  0.000000000000000
 '''
-mol.basis = 'aug-cc-pvdz'
+mol.basis = 'def2-svpd'
 mol.symmetry = 1
 mol.build()
 
@@ -25,8 +36,10 @@ mo0 = a.mo_coeff
 occ = a.mo_occ
 
 # Assign initial occupation pattern
-occ[0][4]=0 # this excited state is originated from HOMO(alpha) -> LUMO(alpha)
-occ[0][5]=1 # it is still a singlet state
+occ[0][20]=0 # this excited state is originated from HOMO(alpha) -> LUMO(alpha)
+occ[0][21]=1 # it is still a singlet state
+occ[1][20]=0 # this excited state is originated from HOMO(beta) -> LUMO(beta)
+occ[1][21]=1 # it is still a singlet state
 
 mf = dft.UKS(mol)
 mf.xc = 'm06-2x'

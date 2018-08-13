@@ -3,8 +3,9 @@
 import numpy, scipy
 
 def imom_occ_(mf, occorb, setocc, mo_coeff):
-    '''Use i-maximum overlap method to determine occupation number for each orbital in every
-    iteration. It can be applied to unrestricted HF/KS and restricted open-shell
+    '''Use initital-maximum overlap method (I-MOM) to determine 
+    occupation number for each orbital in every iteration. It 
+    can be applied to unrestricted HF/KS and restricted open-shell
     HF/KS.'''
     from pyscf.scf import uhf, rohf
     if isinstance(mf, uhf.UHF):
@@ -26,7 +27,7 @@ def imom_occ_(mf, occorb, setocc, mo_coeff):
         nocc_b = int(numpy.sum(setocc[1]))
         s_a = reduce(numpy.dot, (coef_occ_a.T, mf.get_ovlp(), mo_coeff[0])) 
         s_b = reduce(numpy.dot, (coef_occ_b.T, mf.get_ovlp(), mo_coeff[1]))
-        #choose a subset of mo_coeff, which maximizes <old|now>
+        #choose a subset of mo_coeff, which maximizes <initial|now>
         idx_a = numpy.argsort(numpy.einsum('ij,ij->j', s_a, s_a))
         idx_b = numpy.argsort(numpy.einsum('ij,ij->j', s_b, s_b))
         mo_occ[0][idx_a[-nocc_a:]] = 1.
@@ -54,5 +55,6 @@ def imom_occ_(mf, occorb, setocc, mo_coeff):
         return mo_occ
     mf.get_occ = get_occ
     return mf
+
 imom_occ = imom_occ_
 
