@@ -64,9 +64,17 @@ eri_mo = eri_mo.reshape(nocc,nvir,nocc,nvir)
 
 # Antisymmetrize:
 # <pr||qs> = <pr|qs> - <ps|qr>
-eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
+#eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
+#t2 = numpy.zeros((nocc,nvir,nocc,nvir))
+#t2 = einsum('iajb,iajb->iajb', eri_mo, e_denom)
+#e_mp2 = 0.25*numpy.einsum('iajb,iajb->', eri_mo, t2, optimize=True)
+#lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
+#lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
+
 t2 = numpy.zeros((nocc,nvir,nocc,nvir))
-t2 = einsum('iajb,iajb->iajb', eri_mo, e_denom)
+t2 = numpy.einsum('iajb,iajb->iajb', \
+eri_mo - eri_mo.transpose(0,3,2,1), e_denom, optimize=True)
+t2 = t2 - t2.transpose(0,3,2,1)
 e_mp2 = 0.25*numpy.einsum('iajb,iajb->', eri_mo, t2, optimize=True)
 lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
 lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
