@@ -6,16 +6,18 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
+mol.basis = 'cc-pvdz'
 mol.atom = '''
-O
-H 1 1.1
-H 1 1.1 2 104
+C  0.0000  0.0000  0.0000
+H  0.6276  0.6276  0.6276
+H  0.6276 -0.6276 -0.6276
+H -0.6276  0.6276 -0.6276
+H -0.6276 -0.6276  0.6276
 '''
 mol.charge = 0
 mol.spin = 0
 mol.symmetry = 1
 mol.verbose = 4
-mol.basis = '6-31g'
 mol.build()
 
 mf = scf.UHF(mol)
@@ -24,10 +26,8 @@ nao0, nmo0 = mf.mo_coeff[0].shape
 
 Ca = mf.mo_coeff[0]
 Cb = mf.mo_coeff[1]
-coeff = numpy.block([
-                    [      Ca            ,numpy.zeros_like(Cb) ],
-                    [numpy.zeros_like(Ca),          Cb         ]
-                                      ])
+coeff = numpy.block([[Ca            ,numpy.zeros_like(Cb)],
+                      [numpy.zeros_like(Ca),          Cb]])
 occ = numpy.hstack((mf.mo_occ[0],mf.mo_occ[1]))
 energy = numpy.hstack((mf.mo_energy[0],mf.mo_energy[1]))
 
@@ -37,7 +37,7 @@ occ = occ[idx]
 energy = energy[idx]
 
 nao, nmo = coeff.shape
-ncore = 0
+ncore = 2
 nocc = mol.nelectron - ncore
 nvir = nmo - nocc - ncore
 lib.logger.info(mf,"* Core orbitals: %d" % ncore)
@@ -54,11 +54,11 @@ e_denom = 1.0/(eo.reshape(-1,1,1,1)-ev.reshape(-1,1,1)+eo.reshape(-1,1)-ev)
 
 eri_ao = ao2mo.restore(1,mf._eri,nao0)
 eri_ao = eri_ao.reshape((nao0,nao0,nao0,nao0))
-def spin_block_tei(I):
+def spin_block(eri):
     identity = numpy.eye(2)
-    I = numpy.kron(identity, I)
-    return numpy.kron(identity, I.T)
-eri_ao = spin_block_tei(eri_ao)
+    eri = numpy.kron(identity, eri)
+    return numpy.kron(identity, eri.T)
+eri_ao = spin_block(eri_ao)
 eri_mo = ao2mo.general(eri_ao, (co,cv,co,cv), compact=False)
 eri_mo = eri_mo.reshape(nocc,nvir,nocc,nvir)
 
