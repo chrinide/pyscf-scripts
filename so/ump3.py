@@ -58,7 +58,7 @@ eri_ao = spin_block(eri_ao)
 eri_mo = ao2mo.general(eri_ao, (c,c,c,c), compact=False)
 eri_mo = eri_mo.reshape(n,n,n,n)
 o = slice(0, nocc)
-v = slice(nocc, eri_mo.shape[0])
+v = slice(nocc, None)
 
 t2 = numpy.zeros((nocc,nvir,nocc,nvir))
 t2 = numpy.einsum('iajb,iajb->iajb', \
@@ -69,9 +69,12 @@ lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
 
 # MP3 Correlation: [Szabo:1996] pp. 353, Eqn. 6.75
 eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
-eqn1 = 0.125*numpy.einsum('arbs,cadb,rcsd,crds->', t2, eri_mo[o,o,o,o], eri_mo[v,o,v,o], e_denom)
-eqn2 = 0.125*numpy.einsum('arbs,rtsu,taub,atbu->', t2, eri_mo[v,v,v,v], eri_mo[v,o,v,o], e_denom)
-eqn3 = numpy.einsum('arbs,ctsb,ratc,arct->', t2, eri_mo[o,v,v,o], eri_mo[v,o,v,o], e_denom)
+#eqn1 = 0.125*numpy.einsum('arbs,cadb,rcsd,crds->', t2, eri_mo[o,o,o,o], eri_mo[v,o,v,o], e_denom)
+eqn1 = 0.125*numpy.einsum('arbs,cadb,rcsd->', t2, eri_mo[o,o,o,o], t2.transpose(1,0,3,2))
+#eqn2 = 0.125*numpy.einsum('arbs,rtsu,taub,atbu->', t2, eri_mo[v,v,v,v], eri_mo[v,o,v,o], e_denom)
+eqn2 = 0.125*numpy.einsum('arbs,rtsu,taub->', t2, eri_mo[v,v,v,v], t2.transpose(1,0,3,2)) 
+#eqn3 = numpy.einsum('arbs,ctsb,ratc,arct->', t2, eri_mo[o,v,v,o], eri_mo[v,o,v,o], e_denom)
+eqn3 = numpy.einsum('arbs,ctsb,ratc->', t2, eri_mo[o,v,v,o], t2.transpose(1,0,3,2))  
 
 e_mp3 = eqn1 + eqn2 + eqn3
 lib.logger.info(mf,"!*** E(MP3): %12.8f" % e_mp3)

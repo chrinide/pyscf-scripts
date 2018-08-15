@@ -9,10 +9,15 @@ einsum = lib.einsum
 name = 'ump2'
 
 mol = gto.Mole()
-mol.atom = [['O', (0.,   0., 0.)],
-            ['O', (1.21, 0., 0.)]]
-mol.basis = 'sto-3g'
-mol.spin = 2
+mol.basis = 'cc-pvdz'
+mol.atom = '''
+C  0.0000  0.0000  0.0000
+H  0.6276  0.6276  0.6276
+H  0.6276 -0.6276 -0.6276
+H -0.6276  0.6276 -0.6276
+H -0.6276 -0.6276  0.6276
+'''
+mol.spin = 0
 mol.verbose = 4
 mol.build()
 
@@ -20,7 +25,7 @@ mf = scf.UHF(mol)
 ehf = mf.kernel()
 nao,nmo = mf.mo_coeff[0].shape
 
-frozen = [[0,1],[0,1]]
+frozen = [[0],[0]]
 pt2 = mp.UMP2(mf, frozen=frozen)
 emp2, t2 = pt2.kernel()
 
@@ -37,9 +42,9 @@ nmob = mo_b.shape[1]
 
 coeff = numpy.hstack([mo_a,mo_b])
 occ = numpy.hstack([occ_a,occ_b])
-with open(name+'.mol', 'w') as f2:
-    molden.header(mol, f2)
-    molden.orbital_coeff(mol, f2, coeff, occ=occ)
+#with open(name+'.mol', 'w') as f2:
+#    molden.header(mol, f2)
+#    molden.orbital_coeff(mol, f2, coeff, occ=occ)
 
 eriaa = ao2mo.kernel(mf._eri, mo_a, compact=False).reshape([nmoa]*4)
 eribb = ao2mo.kernel(mf._eri, mo_b, compact=False).reshape([nmob]*4)
@@ -57,29 +62,30 @@ e1 += einsum('ijkl,ijkl', eribb, rdm2bb)*0.5
 e1 += mol.energy_nuc()
 lib.logger.info(pt2,"!**** 1/2-RDM energy: %12.8f" % (e1))
 
-den_file = name + '.den'
-fspt = open(den_file,'w')
-fspt.write('CCIQA\n')
-fspt.write('1-RDM:\n')
-for i in range(nmo):
-    for j in range(nmo):
-        fspt.write('%i %i %.10f\n' % ((i+1), (j+1), rdm1a[i,j]))
-        fspt.write('%i %i %.10f\n' % ((i+1+nmo), (j+1+nmo), rdm1b[i,j]))
-fspt.write('2-RDM:\n')
-for i in range(nmo):
-    for j in range(nmo):
-        for k in range(nmo):
-            for l in range(nmo):
-                if (abs(rdm2aa[i,j,k,l]) > 1e-8):
-                    fspt.write('%i %i %i %i %.10f\n' % ((i+1), \
-                    (j+1), (k+1), (l+1), rdm2aa[i,j,k,l]))
-                if (abs(rdm2bb[i,j,k,l]) > 1e-8):
-                    fspt.write('%i %i %i %i %.10f\n' % ((i+1+nmo), \
-                    (j+1+nmo), (k+1+nmo), (l+1+nmo), rdm2bb[i,j,k,l]))
-                if (abs(rdm2ab[i,j,k,l]) > 1e-8):
-                    fspt.write('%i %i %i %i %.10f\n' % ((i+1), \
-                    (j+1), (k+1+nmo), (l+1+nmo), rdm2ab[i,j,k,l]))
-                if (abs(rdm2ba[i,j,k,l]) > 1e-8):
-                    fspt.write('%i %i %i %i %.10f\n' % ((i+1+nmo), \
-                    (j+1+nmo), (k+1), (l+1), rdm2ba[i,j,k,l]))
-fspt.close()                    
+#den_file = name + '.den'
+#fspt = open(den_file,'w')
+#fspt.write('CCIQA\n')
+#fspt.write('1-RDM:\n')
+#for i in range(nmo):
+#    for j in range(nmo):
+#        fspt.write('%i %i %.10f\n' % ((i+1), (j+1), rdm1a[i,j]))
+#        fspt.write('%i %i %.10f\n' % ((i+1+nmo), (j+1+nmo), rdm1b[i,j]))
+#fspt.write('2-RDM:\n')
+#for i in range(nmo):
+#    for j in range(nmo):
+#        for k in range(nmo):
+#            for l in range(nmo):
+#                if (abs(rdm2aa[i,j,k,l]) > 1e-8):
+#                    fspt.write('%i %i %i %i %.10f\n' % ((i+1), \
+#                    (j+1), (k+1), (l+1), rdm2aa[i,j,k,l]))
+#                if (abs(rdm2bb[i,j,k,l]) > 1e-8):
+#                    fspt.write('%i %i %i %i %.10f\n' % ((i+1+nmo), \
+#                    (j+1+nmo), (k+1+nmo), (l+1+nmo), rdm2bb[i,j,k,l]))
+#                if (abs(rdm2ab[i,j,k,l]) > 1e-8):
+#                    fspt.write('%i %i %i %i %.10f\n' % ((i+1), \
+#                    (j+1), (k+1+nmo), (l+1+nmo), rdm2ab[i,j,k,l]))
+#                if (abs(rdm2ba[i,j,k,l]) > 1e-8):
+#                    fspt.write('%i %i %i %i %.10f\n' % ((i+1+nmo), \
+#                    (j+1+nmo), (k+1), (l+1), rdm2ba[i,j,k,l]))
+#fspt.close()                    
+
