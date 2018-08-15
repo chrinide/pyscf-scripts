@@ -69,12 +69,9 @@ lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
 
 # MP3 Correlation: [Szabo:1996] pp. 353, Eqn. 6.75
 eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
-eqn1 = 0.125*numpy.einsum('arbs,cadb,rcsd,arbs,crds->', \
-eri_mo[o,v,o,v], eri_mo[o,o,o,o], eri_mo[v,o,v,o], e_denom, e_denom)
-eqn2 = 0.125*numpy.einsum('arbs,rtsu,taub,arbs,atbu->', \
-eri_mo[o,v,o,v], eri_mo[v,v,v,v], eri_mo[v,o,v,o], e_denom, e_denom)
-eqn3 = numpy.einsum('arbs,ctsb,ratc,asbr,arct->', \
-eri_mo[o,v,o,v], eri_mo[o,v,v,o], eri_mo[v,o,v,o], e_denom, e_denom)
+eqn1 = 0.125*numpy.einsum('arbs,cadb,rcsd,crds->', t2, eri_mo[o,o,o,o], eri_mo[v,o,v,o], e_denom)
+eqn2 = 0.125*numpy.einsum('arbs,rtsu,taub,atbu->', t2, eri_mo[v,v,v,v], eri_mo[v,o,v,o], e_denom)
+eqn3 = numpy.einsum('arbs,ctsb,ratc,arct->', t2, eri_mo[o,v,v,o], eri_mo[v,o,v,o], e_denom)
 
 e_mp3 = eqn1 + eqn2 + eqn3
 lib.logger.info(mf,"!*** E(MP3): %12.8f" % e_mp3)

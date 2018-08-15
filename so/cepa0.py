@@ -57,32 +57,34 @@ o = slice(0, nocc)
 v = slice(nocc, None)
 n = numpy.newaxis
 eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
-eri_mo = eri_mo.transpose(0,2,1,3)
 
-t_amp = numpy.zeros((nvir,nvir,nocc,nocc))
-e_abij = 1.0/(-energy[v,n,n,n] - energy[n,v,n,n] + energy[n,n,o,n] + energy[n,n,n,o]) 
+t2 = numpy.zeros((nvir,nocc,nvir,nocc))
+eo = energy[ncore:ncore+nocc]
+ev = energy[ncore+nocc:]
+e_denom = 1.0/(-ev.reshape(-1,1,1,1)+eo.reshape(-1,1,1)-ev.reshape(-1,1)+eo)
 
 e_cepa0 = 0.0
 maxiter = 50
-for cc_iter in range(maxiter + 1):
+mp2 = eri_mo[v, o, v, o]
+mp2 = mp2*e_denom
+for it in range(maxiter+1):
     e_old = e_cepa0
-    mp2 = eri_mo[v, v, o, o]
-    cepa1 = 0.5*numpy.einsum('abcd,cdij->abij', eri_mo[v,v,v,v], t_amp)
-    cepa2 = 0.5*numpy.einsum('klij,abkl->abij', eri_mo[o,o,o,o], t_amp)
-    cepa3a = numpy.einsum('akic, bcjk -> abij', eri_mo[v,o,o,v], t_amp)
-    cepa3b = -cepa3a.transpose(1,0,2,3)
-    cepa3c = -cepa3a.transpose(0,1,3,2)
-    cepa3d = cepa3a.transpose(1,0,3,2)
+    cepa1 = 0.5*numpy.einsum('acbd,cidj->aibj', eri_mo[v,v,v,v], t2)
+    cepa2 = 0.5*numpy.einsum('kilj,akbl->aibj', eri_mo[o,o,o,o], t2)
+    cepa3a = numpy.einsum('aikc,bjck->aibj', eri_mo[v,o,o,v], t2)
+    cepa3b = -cepa3a.transpose(2,1,0,3)
+    cepa3c = -cepa3a.transpose(0,3,2,1)
+    cepa3d = cepa3a.transpose(2,3,0,1)
     cepa3 = cepa3a + cepa3b + cepa3c + cepa3d
-    t_amp_new = e_abij*(mp2 + cepa1 + cepa2 + cepa3)
-    e_cepa0 = 0.25*numpy.einsum('ijab,abij->', eri_mo[o,o,v,v], t_amp_new)
-    t_amp = t_amp_new
+    t2_new = e_denom*(cepa1 + cepa2 + cepa3) + mp2
+    e_cepa0 = 0.25*numpy.einsum('iajb,aibj->', eri_mo[o,v,o,v], t2_new)
+    t2 = t2_new
     de = e_cepa0 - e_old
-    lib.logger.info(mf,'Iteration %3d: energy = %4.12f de = %1.5e' % (cc_iter, e_cepa0, de))
+    lib.logger.info(mf,'Iteration %3d: energy = %4.12f de = %1.5e' % (it, e_cepa0, de))
     if abs(de) < 1.e-8:
         lib.logger.info(mf,"CEPA0 Iterations have converged!")
         break
-    if (cc_iter == maxiter):
+    if (it == maxiter):
         raise Exception("Maximum number of iterations exceeded.")
 
 lib.logger.info(mf,'CEPA0 Correlation Energy: %5.15f' % (e_cepa0))
