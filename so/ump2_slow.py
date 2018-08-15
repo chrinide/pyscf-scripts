@@ -24,10 +24,10 @@ mf = scf.UHF(mol)
 ehf = mf.kernel()
 nao0, nmo0 = mf.mo_coeff[0].shape
 
-Ca = mf.mo_coeff[0]
-Cb = mf.mo_coeff[1]
-coeff = numpy.block([[Ca            ,numpy.zeros_like(Cb)],
-                      [numpy.zeros_like(Ca),          Cb]])
+ca = mf.mo_coeff[0]
+cb = mf.mo_coeff[1]
+coeff = numpy.block([[ca            ,numpy.zeros_like(cb)],
+                     [numpy.zeros_like(ca),            cb]])
 occ = numpy.hstack((mf.mo_occ[0],mf.mo_occ[1]))
 energy = numpy.hstack((mf.mo_energy[0],mf.mo_energy[1]))
 
