@@ -57,43 +57,44 @@ o = slice(0, nocc)
 v = slice(nocc, None)
 n = numpy.newaxis
 eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
-eri_mo = eri_mo.transpose(0,2,1,3)
 
-t_amp = numpy.zeros((nvir,nvir,nocc,nocc))
-e_abij = 1.0/(-energy[v,n,n,n] - energy[n,v,n,n] + energy[n,n,o,n] + energy[n,n,n,o]) 
+t2 = numpy.zeros((nvir,nocc,nvir,nocc))
+eo = energy[ncore:ncore+nocc]
+ev = energy[ncore+nocc:]
+e_denom = 1.0/(-ev.reshape(-1,1,1,1)+eo.reshape(-1,1,1)-ev.reshape(-1,1)+eo)
 
 maxiter = 50
 e_ccd = 0.0
+mp2 = eri_mo[v,o,v,o]*e_denom
 for cc_iter in range(1,maxiter+1):
     e_old = e_ccd
 
-    mp2 = eri_mo[v,v,o,o]
-    cepa1 = 0.5*numpy.einsum('abcd,cdij->abij', eri_mo[v,v,v,v], t_amp)
-    cepa2 = 0.5*numpy.einsum('klij,abkl->abij', eri_mo[o,o,o,o], t_amp)
-    cepa3a = numpy.einsum('akic,bcjk->abij', eri_mo[v,o,o,v], t_amp)
-    cepa3b = -cepa3a.transpose(1,0,2,3)
-    cepa3c = -cepa3a.transpose(0,1,3,2)
-    cepa3d = cepa3a.transpose(1,0,3,2)
+    cepa1 = 0.5*numpy.einsum('acbd,cidj->aibj', eri_mo[v,v,v,v], t2)
+    cepa2 = 0.5*numpy.einsum('kilj,akbl->aibj', eri_mo[o,o,o,o], t2)
+    cepa3a = numpy.einsum('aikc,bjck->aibj', eri_mo[v,o,o,v], t2)
+    cepa3b = -cepa3a.transpose(2,1,0,3)
+    cepa3c = -cepa3a.transpose(0,3,2,1)
+    cepa3d = cepa3a.transpose(2,3,0,1)
     cepa3 = cepa3a + cepa3b + cepa3c + cepa3d
 
-    ccd1a_tmp = numpy.einsum('klcd,bdkl->cb', eri_mo[o,o,v,v], t_amp)
-    ccd1a = numpy.einsum("cb,acij->abij", ccd1a_tmp, t_amp)
-    ccd1b  = -ccd1a.transpose(1,0,2,3)
-    ccd1   = -0.5*(ccd1a + ccd1b)
-    ccd2a_tmp = numpy.einsum('klcd,cdjl->jk', eri_mo[o,o,v,v], t_amp)
-    ccd2a = numpy.einsum("jk,abik->abij", ccd2a_tmp, t_amp)
-    ccd2b = -ccd2a.transpose(0,1,3,2)
-    ccd2 = -0.5 * (ccd2a + ccd2b)
-    ccd3_tmp = numpy.einsum("klcd,cdij->klij", eri_mo[o,o,v,v], t_amp)
-    ccd3 = 0.25*numpy.einsum("klij,abkl->abij", ccd3_tmp, t_amp)
-    ccd4a_tmp = numpy.einsum("klcd,acik->laid", eri_mo[o,o,v,v], t_amp)
-    ccd4a = numpy.einsum("laid,bdjl->abij", ccd4a_tmp, t_amp)
-    ccd4b = -ccd4a.transpose(0,1,3,2)
+    ccd1a_tmp = numpy.einsum('kcld,bkdl->cb', eri_mo[o,v,o,v], t2)
+    ccd1a = numpy.einsum("cb,aicj->aibj", ccd1a_tmp, t2)
+    ccd1b = -ccd1a.transpose(2,1,0,3)
+    ccd1 = -0.5*(ccd1a + ccd1b)
+    ccd2a_tmp = numpy.einsum('kcld,cjdl->jk', eri_mo[o,v,o,v], t2)
+    ccd2a = numpy.einsum("jk,aibk->aibj", ccd2a_tmp, t2)
+    ccd2b = -ccd2a.transpose(0,3,2,1)
+    ccd2 = -0.5*(ccd2a + ccd2b)
+    ccd3_tmp = numpy.einsum("kcld,cidj->kilj", eri_mo[o,v,o,v], t2)
+    ccd3 = 0.25*numpy.einsum("kilj,akbl->aibj", ccd3_tmp, t2)
+    ccd4a_tmp = numpy.einsum("kcld,aick->liad", eri_mo[o,v,o,v], t2)
+    ccd4a = numpy.einsum("liad,bjdl->aibj", ccd4a_tmp, t2)
+    ccd4b = -ccd4a.transpose(0,3,2,1)
     ccd4 = (ccd4a + ccd4b)
 
-    t_amp_new = e_abij*(mp2 + cepa1 + cepa2 + cepa3 + ccd1 + ccd2 + ccd3 + ccd4)
-    e_ccd = 0.25*numpy.einsum('ijab,abij->', eri_mo[o,o,v,v], t_amp_new)
-    t_amp = t_amp_new
+    t2_new = e_denom*(cepa1 + cepa2 + cepa3 + ccd1 + ccd2 + ccd3 + ccd4) + mp2
+    e_ccd = 0.25*numpy.einsum('iajb,aibj->', eri_mo[o,v,o,v], t2_new)
+    t2 = t2_new
     de = e_ccd - e_old
     lib.logger.info(mf,'Iteration %3d: energy = %4.12f de = %1.5e' % (cc_iter, e_ccd, de))
     if abs(de) < 1.e-8:
