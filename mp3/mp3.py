@@ -37,11 +37,11 @@ MO = MO.swapaxes(1, 2)
 
 # MP2 Correlation energy
 rdm2 = numpy.zeros((nocc,nvir,nocc,nvir))
-MP2corr_E = 2*einsum('rsab,abrs->abrs', MO[v, v, o, o], epsilon)
-MP2corr_E -= einsum('rsba,abrs->abrs', MO[v, v, o, o], epsilon)
+MP2corr_E = 2*numpy.einsum('rsab,abrs->abrs', MO[v, v, o, o], epsilon)
+MP2corr_E -= numpy.einsum('rsba,abrs->abrs', MO[v, v, o, o], epsilon)
 MP2corr_E = MP2corr_E.swapaxes(1,2)
 rdm2 = MP2corr_E*2.0
-MP2corr_E = einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
+MP2corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
 MP2total_E = SCF_E + MP2corr_E
 print('MP2 correlation energy: %16.8f' % MP2corr_E)
 print('MP2 total energy:       %16.8f' % MP2total_E)
@@ -53,35 +53,35 @@ print('MP2 total energy:       %16.8f' % MP2total_E)
 print('Starting MP3 energy...')
 t = time.time()
 # Equation 1: 3rd order diagram 1
-MP3corr_E =   2.0*einsum('ruts,tsab,abru,abts->abru', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon) 
+MP3corr_E =   2.0*numpy.einsum('ruts,tsab,abru,abts->abru', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon) 
 # Equation 2: 3rd order diagram 2 
-MP3corr_E +=  2.0*einsum('cbad,rscb,adrs,cbrs->adrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E +=  2.0*numpy.einsum('cbad,rscb,adrs,cbrs->adrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 3: 3rd order diagram 3
-MP3corr_E += -4.0*einsum('rbsc,stab,acrt,abst->acrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -4.0*numpy.einsum('rbsc,stab,acrt,abst->acrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 4: 3rd order diagram 4
-MP3corr_E += -4.0*einsum('rasb,stac,bcrt,acst->bcrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -4.0*numpy.einsum('rasb,stac,bcrt,acst->bcrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 5: 3rd order diagram 5
-MP3corr_E +=  8.0*einsum('btsc,rsab,acrt,abrs->acrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E +=  8.0*numpy.einsum('btsc,rsab,acrt,abrs->acrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 6: 3rd order diagram 6
-MP3corr_E +=  2.0*einsum('atsc,rsab,cbrt,abrs->cbrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E +=  2.0*numpy.einsum('atsc,rsab,cbrt,abrs->cbrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 7: 3rd order diagram 7
-MP3corr_E += -1.0*einsum('dbac,srdb,acrs,dbrs->acrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -1.0*numpy.einsum('dbac,srdb,acrs,dbrs->acrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 8: 3rd order diagram 8
-MP3corr_E += -1.0*einsum('trus,usab,abtr,abus->abrt', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -1.0*numpy.einsum('trus,usab,abtr,abus->abrt', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon)
 # Equation 9: 3rd order diagram 9
-MP3corr_E +=  2.0*einsum('arbs,tsac,cbrt,acst->bcrt', MO[o, v, o, v], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E +=  2.0*numpy.einsum('arbs,tsac,cbrt,acst->bcrt', MO[o, v, o, v], MO[v, v, o, o], epsilon, epsilon)
 # Equation 10: 3rd order diagram 10
-MP3corr_E +=  2.0*einsum('rasb,stac,cbrt,acst->cbrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E +=  2.0*numpy.einsum('rasb,stac,cbrt,acst->cbrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
 # Equation 11: 3rd order diagram 11
-MP3corr_E += -4.0*einsum('scat,rtbc,abrs,cbrt->abrs', MO[v, o, o, v], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -4.0*numpy.einsum('scat,rtbc,abrs,cbrt->abrs', MO[v, o, o, v], MO[v, v, o, o], epsilon, epsilon)
 # Equation 12: 3rd order diagram 12
-MP3corr_E += -4.0*einsum('atsc,rsab,bctr,abrs->bcrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
+MP3corr_E += -4.0*numpy.einsum('atsc,rsab,bctr,abrs->bcrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
 MP3corr_E = MP3corr_E.swapaxes(1,2)
 rdm2 += MP3corr_E*2.0
-MP3corr_E = einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), MP3corr_E)
+MP3corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), MP3corr_E)
 print('Third order energy:     %16.8f' % MP3corr_E)
 print('...took %.3f seconds to compute MP3 correlation energy.' % (time.time()-t))
-MP3corr_E = einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
+MP3corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
 MP3total_E = SCF_E + MP3corr_E
 print('MP3 correlation energy: %16.8f' % MP3corr_E)
 print('MP3 total energy:       %16.8f' % MP3total_E)
