@@ -6,8 +6,6 @@ from pyscf import scf, gto, mp, lib, ao2mo
 from pyscf.tools import molden
 einsum = lib.einsum
 
-name = 'ump2'
-
 mol = gto.Mole()
 mol.basis = 'cc-pvdz'
 mol.atom = '''

@@ -3,11 +3,9 @@ Add
 Spread tensor
 TAO-DFT
 DF-MP3
-ft-mp2.py --> Finit temperature MP2
-ftr-mp2.py --> Renormalized finit temperature MP2
-lp-lo-mp2.py --> Laplace local density fitting
-mp2+vdw.py
+FNO-DF-UMP2
+Standard and renormalized finit temperature MP2
+MP2-VDW
 EOM-MP2
-Cube for RHO, ELF, LAP, NCI
-YT
+Cube RHO, ELF, LAP, NCI field and YT for rho
 XDM
