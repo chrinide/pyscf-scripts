@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import numpy, sys
+sys.path.append('../tools')
 from pyscf import gto, scf, lib, ao2mo, dft, tddft
 from pyscf.tools import molden
 from pyscf.data import nist
+import davidson
 einsum = lib.einsum
 
 nroots = 3
