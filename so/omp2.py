@@ -124,15 +124,15 @@ for it in range(maxiter+1):
 
     # Newton-Raphson step
     t = time.time()
+    lib.logger.info(mf,'Start building NR')
     F = numpy.einsum('pr,rq->pq', hmo, opdm) + \
         0.5*numpy.einsum('psrt,sqtr->pq', eri_mo, tpdm)
     X[v,o] = ((F - F.T)[v,o])/(-eps[v,x] + eps[x,o])
     # Build Newton-Raphson orbital rotation matrix
-    lib.logger.debug(mf,'Start building NR')
     U = scipy.linalg.expm(X - X.T)
     # Rotate spin-orbital coefficients
     c = c.dot(U)
-    lib.logger.debug(mf,'.. finished in %.3f seconds.' % (time.time()-t))
+    lib.logger.info(mf,'.. finished in %.3f seconds.' % (time.time()-t))
 
     t = time.time()
     lib.logger.debug(mf,'Start rotating integrals')

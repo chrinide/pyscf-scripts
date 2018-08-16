@@ -67,6 +67,7 @@ for i in range(nocc):
         excitations.append((i, a))
 
 # CIS Hamiltonian
+shift = 0.0
 h = numpy.zeros((nov, nov))
 for p, left_excitation in enumerate(excitations):
     i, a = left_excitation
@@ -74,7 +75,6 @@ for p, left_excitation in enumerate(excitations):
     for q, right_excitation in enumerate(excitations):
         j, b = right_excitation 
         bb = b - nocc
-        shift = 0.0
         eri = 2.0*v_iajb[i,aa,j,bb] - v_ijab[i,j,aa,bb]
         h[p, q] = eri + shift + \
         (mf.mo_energy[a] - mf.mo_energy[i]) * (i==j)*(a==b) 
