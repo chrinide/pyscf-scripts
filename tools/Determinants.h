@@ -1,3 +1,5 @@
+// JLC modified in order to print dets for promolden
+
 /*
   Developed by Sandeep Sharma with contributions from James E. T. Smith and Adam A. Holmes, 2017
   Copyright (c) 2017, Sandeep Sharma
