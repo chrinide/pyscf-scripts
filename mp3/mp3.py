@@ -13,76 +13,68 @@ H          0.000000000000    -0.757480611647     0.520865616174
 H          0.000000000000     0.757480611647     0.520865616174
            '''
 mol.basis = 'aug-cc-pvdz'
-mol.verbose = 0
+mol.verbose = 4
 mol.build()
 
 mf = scf.RHF(mol)
-SCF_E = mf.kernel()
+ehf = mf.kernel()
 
 nao, nmo = mf.mo_coeff.shape
 ncore = 0
 nocc = mol.nelectron/2 - ncore
 nvir = nmo - nocc - ncore
 c = mf.mo_coeff[:,ncore:ncore+nocc+nvir]
-eocc = mf.mo_energy[ncore:ncore+nocc]
-evirt = mf.mo_energy[ncore+nocc:]
+eo = mf.mo_energy[ncore:ncore+nocc]
+ev = mf.mo_energy[ncore+nocc:]
 
-MO = ao2mo.general(mf._eri, (c,c,c,c), compact=False)
-MO = MO.reshape(nocc+nvir,nocc+nvir,nocc+nvir,nocc+nvir)
-epsilon = 1/(eocc.reshape(-1, 1, 1, 1) + eocc.reshape(-1, 1, 1) - evirt.reshape(-1, 1) - evirt)
+eri_mo = ao2mo.general(mf._eri, (c,c,c,c), compact=False)
+eri_mo = eri_mo.reshape(nocc+nvir,nocc+nvir,nocc+nvir,nocc+nvir)
+epsilon = 1/(eo.reshape(-1,1,1,1) + eo.reshape(-1,1,1) - ev.reshape(-1,1) - ev)
 o = slice(0, nocc)
-v = slice(nocc, MO.shape[0])
-# To Szabo physics notations
-MO = MO.swapaxes(1, 2)
+v = slice(nocc, None)
+eri_mo = eri_mo.swapaxes(1, 2)
 
-# MP2 Correlation energy
-rdm2 = numpy.zeros((nocc,nvir,nocc,nvir))
-MP2corr_E = 2*numpy.einsum('rsab,abrs->abrs', MO[v, v, o, o], epsilon)
-MP2corr_E -= numpy.einsum('rsba,abrs->abrs', MO[v, v, o, o], epsilon)
-MP2corr_E = MP2corr_E.swapaxes(1,2)
-rdm2 = MP2corr_E*2.0
-MP2corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
-MP2total_E = SCF_E + MP2corr_E
-print('MP2 correlation energy: %16.8f' % MP2corr_E)
-print('MP2 total energy:       %16.8f' % MP2total_E)
+t2 = numpy.zeros((nocc,nvir,nocc,nvir))
+t2 = 2.0*numpy.einsum('rsab,abrs->abrs', eri_mo[v,v,o,o], epsilon)
+t2 -= numpy.einsum('rsba,abrs->abrs', eri_mo[v,v,o,o], epsilon)
+t2 = t2.swapaxes(1,2)
+e_mp2 = numpy.einsum('iajb,iajb->', eri_mo[o,o,v,v].swapaxes(1,2), t2)
+lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
+lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
 
 # MP3 Correlation energy
 # Prefactors taken from terms in unnumbered expression for spatial-orbital MP3
 # energy on [Szabo:1996] pp. (bottom) 367 - (top) 368. Individual equations taken
 # from [Szabo:1996] Tbl. 6.2 pp. 364-365
-print('Starting MP3 energy...')
 t = time.time()
+lib.logger.info(mf,"Starting MP3 energy")
+t2 = numpy.zeros((nocc,nocc,nvir,nvir))
 # Equation 1: 3rd order diagram 1
-MP3corr_E =   2.0*numpy.einsum('ruts,tsab,abru,abts->abru', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon) 
+t2 = 2.0*numpy.einsum('ruts,tsab,abru,abts->abru', eri_mo[v,v,v,v], eri_mo[v,v,o,o], epsilon, epsilon) 
 # Equation 2: 3rd order diagram 2 
-MP3corr_E +=  2.0*numpy.einsum('cbad,rscb,adrs,cbrs->adrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += 2.0*numpy.einsum('cbad,rscb,adrs,cbrs->adrs', eri_mo[o,o,o,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 3: 3rd order diagram 3
-MP3corr_E += -4.0*numpy.einsum('rbsc,stab,acrt,abst->acrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += -4.0*numpy.einsum('rbsc,stab,acrt,abst->acrt', eri_mo[v,o,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 4: 3rd order diagram 4
-MP3corr_E += -4.0*numpy.einsum('rasb,stac,bcrt,acst->bcrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += -4.0*numpy.einsum('rasb,stac,bcrt,acst->bcrt', eri_mo[v,o,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 5: 3rd order diagram 5
-MP3corr_E +=  8.0*numpy.einsum('btsc,rsab,acrt,abrs->acrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += 8.0*numpy.einsum('btsc,rsab,acrt,abrs->acrt', eri_mo[o,v,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 6: 3rd order diagram 6
-MP3corr_E +=  2.0*numpy.einsum('atsc,rsab,cbrt,abrs->cbrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += 2.0*numpy.einsum('atsc,rsab,cbrt,abrs->cbrt', eri_mo[o,v,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 7: 3rd order diagram 7
-MP3corr_E += -1.0*numpy.einsum('dbac,srdb,acrs,dbrs->acrs', MO[o, o, o, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += -1.0*numpy.einsum('dbac,srdb,acrs,dbrs->acrs', eri_mo[o,o,o,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 8: 3rd order diagram 8
-MP3corr_E += -1.0*numpy.einsum('trus,usab,abtr,abus->abrt', MO[v, v, v, v], MO[v, v, o, o], epsilon, epsilon)
+t2 += -1.0*numpy.einsum('trus,usab,abtr,abus->abrt', eri_mo[v,v,v,v], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 9: 3rd order diagram 9
-MP3corr_E +=  2.0*numpy.einsum('arbs,tsac,cbrt,acst->bcrt', MO[o, v, o, v], MO[v, v, o, o], epsilon, epsilon)
+t2 += 2.0*numpy.einsum('arbs,tsac,cbrt,acst->bcrt', eri_mo[o,v,o,v], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 10: 3rd order diagram 10
-MP3corr_E +=  2.0*numpy.einsum('rasb,stac,cbrt,acst->cbrt', MO[v, o, v, o], MO[v, v, o, o], epsilon, epsilon)
+t2 += 2.0*numpy.einsum('rasb,stac,cbrt,acst->cbrt', eri_mo[v,o,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 11: 3rd order diagram 11
-MP3corr_E += -4.0*numpy.einsum('scat,rtbc,abrs,cbrt->abrs', MO[v, o, o, v], MO[v, v, o, o], epsilon, epsilon)
+t2 += -4.0*numpy.einsum('scat,rtbc,abrs,cbrt->abrs', eri_mo[v,o,o,v], eri_mo[v,v,o,o], epsilon, epsilon)
 # Equation 12: 3rd order diagram 12
-MP3corr_E += -4.0*numpy.einsum('atsc,rsab,bctr,abrs->bcrt', MO[o, v, v, o], MO[v, v, o, o], epsilon, epsilon)
-MP3corr_E = MP3corr_E.swapaxes(1,2)
-rdm2 += MP3corr_E*2.0
-MP3corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), MP3corr_E)
-print('Third order energy:     %16.8f' % MP3corr_E)
-print('...took %.3f seconds to compute MP3 correlation energy.' % (time.time()-t))
-MP3corr_E = numpy.einsum('iajb,iajb->', MO[o,o,v,v].swapaxes(1,2), rdm2)*0.5
-MP3total_E = SCF_E + MP3corr_E
-print('MP3 correlation energy: %16.8f' % MP3corr_E)
-print('MP3 total energy:       %16.8f' % MP3total_E)
+t2 += -4.0*numpy.einsum('atsc,rsab,bctr,abrs->bcrt', eri_mo[o,v,v,o], eri_mo[v,v,o,o], epsilon, epsilon)
+t2 = t2.swapaxes(1,2)
+e_mp3 = numpy.einsum('iajb,iajb->', eri_mo[o,o,v,v].swapaxes(1,2), t2)
+lib.logger.info(mf,"!*** E(MP3): %12.8f" % e_mp3)
+lib.logger.info(mf,'...took %.3f seconds' % (time.time()-t))
 
