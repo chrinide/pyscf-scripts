@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import numpy, scipy
-from functools import reduce
-from pyscf import gto, scf, dft, lib
+import numpy
+from pyscf import scf, gto, lib, lo, dft
+from pyscf.tools import molden
 
 mol = gto.Mole()
 mol.verbose = 4
@@ -21,21 +21,33 @@ mf.xc = 'pbe0'
 mf.grids.level = 4
 mf.scf()
 
-dm = mf.make_rdm1()
-d = dm[0]+dm[1]
-s = mol.intor('int1e_ovlp')
-sl = scipy.linalg.sqrtm(s)
+def sqrtm(s):
+    e, v = numpy.linalg.eigh(s)
+    return numpy.dot(v*numpy.sqrt(e), v.T.conj())
+def lowdin(s):
+    e, v = numpy.linalg.eigh(s)
+    return numpy.dot(v/numpy.sqrt(e), v.T.conj())
 
-dt = reduce(numpy.dot, (sl,d,sl))
-e, v = numpy.linalg.eig(dt)
-natocc, natorb = numpy.linalg.eig(-dt)
-natocc = natocc.real
-natorb = natorb.real
-for i, k in enumerate(numpy.argmax(abs(natorb), axis=0)):
-    if natorb[k,i] < 0:
-        natorb[:,i] *= -1
-#natorb = numpy.dot(mc.mo_coeff[:,:nmo], natorb)
-natocc = -natocc
-tol = 1e-8
-lib.logger.info(mf, '%s' % natocc[abs(natocc)>tol])
+mo_coeff = mf.mo_coeff
+nb = mo_coeff[1].shape[1]
+s = mol.intor_symmetric("cint1e_ovlp_sph")
+dm = mf.make_rdm1()
+
+# Natural orbitals
+thresh = 1e-14
+dm = 0.5*(dm[0]+dm[1])
+s12 = sqrtm(s)
+s12inv = lowdin(s)
+dm = reduce(numpy.dot,(s12,dm,s12))
+lib.logger.info(mf,'Idempotency of DM %s' % numpy.linalg.norm(dm.dot(dm)-dm))
+nocc, coeff = numpy.linalg.eigh(dm)
+nocc = 2*nocc
+nocc[abs(nocc)<thresh] = 0.0
+coeff = numpy.dot(s12inv,coeff)
+diff = reduce(numpy.dot,(coeff.T,s,coeff)) - numpy.identity(nb)
+lib.logger.info(mf,'Orthonormal %s' % numpy.linalg.norm(diff))
+index = numpy.argsort(-nocc)
+nocc = nocc[index]
+coeff = coeff[:,index]
+lib.logger.info(mf,'Natual occupancy %s' % nocc)
 
