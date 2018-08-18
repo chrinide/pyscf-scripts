@@ -5,16 +5,16 @@ from pyscf import gto, scf, lib, ao2mo
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.verbose = 4
+mol.basis = '6-31g'
 mol.atom = '''
-O      0.000000      0.000000      0.118351
-H      0.000000      0.761187     -0.469725
-H      0.000000     -0.761187     -0.469725
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
-mol.basis = 'cc-pvtz'
-mol.symmetry = 1
-mol.spin = 0
 mol.charge = 0
+mol.spin = 0
+mol.symmetry = 1
+mol.verbose = 4
 mol.build()
 
 mf = scf.UHF(mol)
@@ -35,8 +35,8 @@ eriab = ao2mo.kernel(mf._eri, (mo_a,mo_a,mo_b,mo_b), compact=False)
 eriab = eriab.reshape([nmoa,nmoa,nmob,nmob])
 
 nbf = nmoa
-Yalpha = numpy.zeros((nbf))
-Ybeta = numpy.zeros((nbf))
+dalpha = numpy.zeros((nbf))
+dbeta = numpy.zeros((nbf))
 nalpha = mol.nelectron//2
 nbeta = nalpha
 aoccs = range(nalpha)
@@ -49,9 +49,9 @@ bvirt = range(nbeta,nbf)
 # This may be equivalent to second-order Epstein-Nesbet pair
 # correlation theory
 
-Ec1 = 0.
-sum = 0.
-z = 1.
+ec1 = 0.0
+sum = 0.0
+z = 1.0
 
 #compute correction term for two alpha electrons
 
@@ -78,19 +78,19 @@ for a in aoccs:
                 delcorr = (-rraa - rrbb - ssaa - ssbb + rrss + aabb) 
                 delta = eigendif + delcorr*z
 
-                Eio = (arbs - asbr)
+                eio = (arbs - asbr)
 
-                x = -Eio/delta
-                if abs(x) > 1:
+                x = -eio/delta
+                if (abs(x) > 1):
                     lib.logger.info(mf,"Warning a large x value has been discovered with x = " % x)
-                x = numpy.choose(x < 1, (1,x))
-                x = numpy.choose(x > -1, (-1,x))                   
+                x = numpy.choose(x<1, (1,x))
+                x = numpy.choose(x>-1, (-1,x))                   
                 sum += x*x
-                Yalpha[a] -= x*x
-                Yalpha[b] -= x*x
-                Yalpha[r] += x*x
-                Yalpha[s] += x*x
-                Ec1 += x*Eio             
+                dalpha[a] -= x*x
+                dalpha[b] -= x*x
+                dalpha[r] += x*x
+                dalpha[s] += x*x
+                ec1 += x*eio             
 
 
 #compute correction term for two beta electrons
@@ -119,19 +119,19 @@ for a in boccs:
                 delcorr = (-rraa - rrbb - ssaa - ssbb + rrss + aabb) 
                 delta = eigendif + delcorr*z
 
-                Eio = (arbs - asbr)
+                eio = (arbs - asbr)
 
-                x = -Eio/delta
-                if abs(x) > 1: 
+                x = -eio/delta
+                if (abs(x) > 1): 
                     lib.logger.info(mf,"Warning a large x value has been discovered with x = " % x)
-                x = numpy.choose(x < 1, (1,x))
-                x = numpy.choose(x > -1, (-1,x))                   
+                x = numpy.choose(x<1, (1,x))
+                x = numpy.choose(x>-1, (-1,x))                   
                 sum += x*x
-                Ybeta[a] -= x*x
-                Ybeta[b] -= x*x
-                Ybeta[r] += x*x
-                Ybeta[s] += x*x
-                Ec1 += x*Eio
+                dbeta[a] -= x*x
+                dbeta[b] -= x*x
+                dbeta[r] += x*x
+                dbeta[s] += x*x
+                ec1 += x*eio
 
 #compute correction term for one alpha and one beta electron
 
@@ -153,31 +153,31 @@ for a in aoccs:
                 delcorr = (-rraa - rrbb - aass - ssbb + rrss + aabb)
                 delta = eigendif + delcorr*z
 
-                Eio = arbs
+                eio = arbs
 
-                x = -Eio/delta
-                if abs(x) > 1: 
+                x = -eio/delta
+                if (abs(x) > 1): 
                     lib.logger.info(mf,"Warning a large x value has been discovered with x = " % x)
-                x = numpy.choose(x < 1, (1,x))
-                x = numpy.choose(x > -1, (-1,x))                   
+                x = numpy.choose(x<1, (1,x))
+                x = numpy.choose(x>-1, (-1,x))                   
                 sum += x*x
-                Yalpha[a] -= x*x
-                Ybeta[b] -= x*x
-                Yalpha[r] += x*x
-                Ybeta[s] += x*x
-                Ec1 += x*Eio
+                dalpha[a] -= x*x
+                dbeta[b] -= x*x
+                dalpha[r] += x*x
+                dbeta[s] += x*x
+                ec1 += x*eio
 
 #compute the fractional occupations
 for a in aoccs:
-    Yalpha[a] = 1 + Yalpha[a]
+    dalpha[a] += 1.0
 for b in boccs:
-    Ybeta[b] = 1 + Ybeta[b]
+    dbeta[b] += 1.0
+lib.logger.info(mf,"Natural ocupations")
 for a in range(nbf):
-    print "For alpha = ",a,"the fractional occupation is ",Yalpha[a]
-    print "For beta  = ",a,"the fractional occupation is ",Ybeta[a]
+    lib.logger.info(mf,"Alpha,beta %12.6f,%12.6f" % (dalpha[a], dbeta[a]))
 
-#print the energy and its corrections
-E = ehf + Ec1
-print "The total sum of excitations is ",sum
-print "The primary correlation correction is ",Ec1
-print "The total energy is ", E
+e = ehf + ec1
+lib.logger.info(mf,"The total sum of excitations is %12.6f" % sum)
+lib.logger.info(mf,"The primary correlation correction is %12.6f" % ec1)
+lib.logger.info(mf,"The total energy is %12.6f", e)
+

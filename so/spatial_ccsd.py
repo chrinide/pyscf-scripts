@@ -5,25 +5,24 @@ from pyscf import gto, scf, cc, lib, ao2mo
 from pyscf.tools import molden
 einsum = lib.einsum
 
-name = 'uccsd'
-
 mol = gto.Mole()
-mol.verbose = 4
+mol.basis = '6-31g'
 mol.atom = '''
-O      0.000000      0.000000      0.118351
-H      0.000000      0.761187     -0.469725
-H      0.000000     -0.761187     -0.469725
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
-mol.basis = 'sto-3g'
-mol.symmetry = 1
-mol.spin = 0
 mol.charge = 0
+mol.spin = 0
+mol.symmetry = 1
+mol.verbose = 4
 mol.build()
 
 mf = scf.UHF(mol)
 mf.scf()
 
-frozen = [[0],[0]] # 1sa and 1sb
+#frozen = [[0],[0]] # 1sa and 1sb
+frozen = None
 mcc = cc.UCCSD(mf)
 mcc.frozen = frozen
 mcc.diis_space = 10

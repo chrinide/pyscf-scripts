@@ -6,7 +6,7 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.basis = 'cc-pvdz'
+mol.basis = '6-31g'
 mol.atom = '''
 O
 H 1 1.1

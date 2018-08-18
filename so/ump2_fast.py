@@ -4,13 +4,11 @@ import numpy
 from pyscf import gto, scf, ao2mo, lib
 
 mol = gto.Mole()
-mol.basis = 'cc-pvdz'
+mol.basis = '6-31g'
 mol.atom = '''
-C  0.0000  0.0000  0.0000
-H  0.6276  0.6276  0.6276
-H  0.6276 -0.6276 -0.6276
-H -0.6276  0.6276 -0.6276
-H -0.6276 -0.6276  0.6276
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
 mol.charge = 0
 mol.spin = 0
@@ -21,8 +19,8 @@ mol.build()
 mf = scf.UHF(mol)
 mf.scf()
 
-ncorea = 1
-ncoreb = 1
+ncorea = 0
+ncoreb = 0
 nocc = mol.nelectron - ncorea -ncoreb
 lib.logger.info(mf,"* Core orbitals: %d" % (ncorea+ncoreb))
 

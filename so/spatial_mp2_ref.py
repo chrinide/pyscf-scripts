@@ -7,15 +7,15 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.basis = 'cc-pvdz'
+mol.basis = '6-31g'
 mol.atom = '''
-C  0.0000  0.0000  0.0000
-H  0.6276  0.6276  0.6276
-H  0.6276 -0.6276 -0.6276
-H -0.6276  0.6276 -0.6276
-H -0.6276 -0.6276  0.6276
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
+mol.charge = 0
 mol.spin = 0
+mol.symmetry = 1
 mol.verbose = 4
 mol.build()
 
@@ -23,7 +23,8 @@ mf = scf.UHF(mol)
 ehf = mf.kernel()
 nao,nmo = mf.mo_coeff[0].shape
 
-frozen = [[0],[0]]
+#frozen = [[0],[0]]
+frozen = None
 pt2 = mp.UMP2(mf, frozen=frozen)
 emp2, t2 = pt2.kernel()
 

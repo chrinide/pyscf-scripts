@@ -119,12 +119,12 @@ for it in range(maxiter+1):
     lib.logger.debug(mf,'.. finished in %.3f seconds.' % (time.time()-t))
     tpdm = tpdm_corr + \
            tpdm2 - tpdm2.transpose((2,1,0,3)) - \
-           tpdm2.transpose((0,3,2,1)) + tpdm2.transpose((2,3,0,1)) + \
-           tpdm3 - tpdm3.transpose((2,1,0,3))
+           tpdm2.transpose((0,3,2,1)) + tpdm2.transpose((2,3,0,1)) 
+    tpdm += tpdm3 - tpdm3.transpose((2,1,0,3))
 
     # Newton-Raphson step
     t = time.time()
-    lib.logger.info(mf,'Start building NR')
+    lib.logger.debug(mf,'Start building NR')
     F = numpy.einsum('pr,rq->pq', hmo, opdm) + \
         0.5*numpy.einsum('psrt,sqtr->pq', eri_mo, tpdm)
     X[v,o] = ((F - F.T)[v,o])/(-eps[v,x] + eps[x,o])
@@ -132,7 +132,7 @@ for it in range(maxiter+1):
     U = scipy.linalg.expm(X - X.T)
     # Rotate spin-orbital coefficients
     c = c.dot(U)
-    lib.logger.info(mf,'.. finished in %.3f seconds.' % (time.time()-t))
+    lib.logger.debug(mf,'.. finished in %.3f seconds.' % (time.time()-t))
 
     t = time.time()
     lib.logger.debug(mf,'Start rotating integrals')
@@ -142,6 +142,7 @@ for it in range(maxiter+1):
 
     e_omp2 = e_nuc + numpy.einsum('pq,qp->', hmo, opdm) + \
              0.25*numpy.einsum('prqs,rpsq ->', eri_mo, tpdm)
+    lib.logger.info(mf,'Correlatione energy %5.15f' % (e_omp2 - ehf))
 
     de = e_omp2 - e_old
     lib.logger.info(mf,'Iteration %3d: energy = %4.12f de = %1.5e' % (it, e_omp2, de))

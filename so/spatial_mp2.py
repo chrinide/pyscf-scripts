@@ -7,15 +7,15 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.basis = 'cc-pvdz'
+mol.basis = '6-31g'
 mol.atom = '''
-C  0.0000  0.0000  0.0000
-H  0.6276  0.6276  0.6276
-H  0.6276 -0.6276 -0.6276
-H -0.6276  0.6276 -0.6276
-H -0.6276 -0.6276  0.6276
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
+mol.charge = 0
 mol.spin = 0
+mol.symmetry = 1
 mol.verbose = 4
 mol.build()
 
@@ -23,7 +23,7 @@ mf = scf.UHF(mol)
 ehf = mf.kernel()
 nao,nmo = mf.mo_coeff[0].shape
 
-ncore = (1,1)
+ncore = (0,0)
 nelec = mol.nelectron
 nelecb = nelec//2
 neleca = nelec - nelecb
@@ -55,9 +55,9 @@ eri = eri.reshape(nocca,nvira,nocca,nvira)
 e_denom = 1.0/(eoa.reshape(-1, 1, 1, 1) - eva.reshape(-1, 1, 1) + \
                eoa.reshape(-1, 1) - eva)
 rdm2_ss_aa = numpy.zeros((nocca,nvira,nocca,nvira))
-rdm2_ss_aa = einsum('iajb,iajb->iajb', eri, e_denom)
-rdm2_ss_aa -= einsum('ibja,iajb->iajb', eri, e_denom)
-echeck_aa = einsum('iajb,iajb->', eri, rdm2_ss_aa)*0.5
+rdm2_ss_aa = numpy.einsum('iajb,iajb->iajb', eri, e_denom)
+rdm2_ss_aa -= numpy.einsum('ibja,iajb->iajb', eri, e_denom)
+echeck_aa = numpy.einsum('iajb,iajb->', eri, rdm2_ss_aa)*0.5
 print('E(MP2 SS AA) is %12.8f' % echeck_aa)
 
 # Transform the beta part
@@ -66,9 +66,9 @@ eri = eri.reshape(noccb,nvirb,noccb,nvirb)
 e_denom = 1.0/(eob.reshape(-1, 1, 1, 1) - evb.reshape(-1, 1, 1) + \
                eob.reshape(-1, 1) - evb)
 rdm2_ss_bb = numpy.zeros((noccb,nvirb,noccb,nvirb))
-rdm2_ss_bb = einsum('iajb,iajb->iajb', eri, e_denom)
-rdm2_ss_bb -= einsum('ibja,iajb->iajb', eri, e_denom)
-echeck_bb = einsum('iajb,iajb->', eri, rdm2_ss_bb)*0.5
+rdm2_ss_bb = numpy.einsum('iajb,iajb->iajb', eri, e_denom)
+rdm2_ss_bb -= numpy.einsum('ibja,iajb->iajb', eri, e_denom)
+echeck_bb = numpy.einsum('iajb,iajb->', eri, rdm2_ss_bb)*0.5
 print('E(MP2 SS BB) is %12.8f' % echeck_bb)
 
 # The alpha-beta part
@@ -77,10 +77,10 @@ eri = eri.reshape(nocca,nvira,noccb,nvirb)
 e_denom = 1.0/(eoa.reshape(-1, 1, 1, 1) - eva.reshape(-1, 1, 1) + \
                eob.reshape(-1, 1) - evb)
 rdm2_os_ab = numpy.zeros((nocca,nvira,noccb,nvirb))
-rdm2_os_ab = einsum('iajb,iajb->iajb', eri, e_denom)
-echeck_ab = einsum('iajb,iajb->', eri, rdm2_os_ab)*0.5
+rdm2_os_ab = numpy.einsum('iajb,iajb->iajb', eri, e_denom)
+echeck_ab = numpy.einsum('iajb,iajb->', eri, rdm2_os_ab)
 print('E(MP2 OS AB) is %12.8f' % echeck_ab)
 
-print('E(UMP2) = %12.8f' % (echeck_aa+echeck_bb+2*echeck_ab))
-print('E(UHF+UMP2) = %12.8f' % (echeck_aa+echeck_bb+2*echeck_ab+ehf))
+print('E(UMP2) = %12.8f' % (echeck_aa+echeck_bb+echeck_ab))
+print('E(UHF+UMP2) = %12.8f' % (echeck_aa+echeck_bb+echeck_ab+ehf))
 

@@ -6,13 +6,11 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.basis = 'cc-pvdz'
+mol.basis = '6-31g'
 mol.atom = '''
-C  0.0000  0.0000  0.0000
-H  0.6276  0.6276  0.6276
-H  0.6276 -0.6276 -0.6276
-H -0.6276  0.6276 -0.6276
-H -0.6276 -0.6276  0.6276
+O
+H 1 1.1
+H 1 1.1 2 104
 '''
 mol.charge = 0
 mol.spin = 0
@@ -37,7 +35,7 @@ occ = occ[idx]
 energy = energy[idx]
 
 nao, nmo = coeff.shape
-ncore = 2
+ncore = 0
 nocc = mol.nelectron - ncore
 nvir = nmo - nocc - ncore
 lib.logger.info(mf,"* Core orbitals: %d" % ncore)

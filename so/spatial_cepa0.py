@@ -23,45 +23,22 @@ mf = scf.UHF(mol)
 ehf = mf.kernel()
 nao,nmo = mf.mo_coeff[0].shape
 
-pt2 = mp.UMP2(mf)
-pt2.kernel()
-
-ncore = (0,0)
 nelec = mol.nelectron
 nelecb = nelec//2
 neleca = nelec - nelecb
-#neleca = (mol.nelectron+mol.spin)/2
-#nelecb  = (mol.nelectron-mol.spin)/2
-ncorea = ncore[0]
-ncoreb = ncore[1]
-nocca = neleca - ncorea
-nvira = nmo - nocca - ncorea
-noccb = nelecb - ncoreb
-nvirb = nmo - noccb - ncoreb
-nocc = nocca + noccb
-nvir = nvira + nvirb
-lib.logger.info(mf,"* Core orbitals: %d %d" % ncore)
-lib.logger.info(mf,"* Virtual orbitals: %d %d" % (nvira,nvirb))
+nocca = neleca
+nvira = nmo - nocca
+noccb = nelecb
+nvirb = nmo - noccb
 
-coa = mf.mo_coeff[0][:,ncorea:ncorea+nocca] 
-cob = mf.mo_coeff[1][:,ncoreb:ncoreb+noccb]  
-cva = mf.mo_coeff[0][:,ncorea+nocca:] 
-cvb = mf.mo_coeff[1][:,ncoreb+noccb:]  
-eoa = mf.mo_energy[0][ncorea:ncorea+nocca] 
-eob = mf.mo_energy[1][ncoreb:ncoreb+noccb]  
-eva = mf.mo_energy[0][ncorea+nocca:] 
-evb = mf.mo_energy[1][ncoreb+noccb:]  
-
-ca = numpy.hstack((coa,cva))
-cb = numpy.hstack((coa,cvb))
-oa = slice(0, nocca)
-va = slice(nocca, None)
-na = numpy.newaxis
-ob = slice(0, noccb)
-vb = slice(noccb, None)
-nb = numpy.newaxis
+ca = mf.mo_coeff[0]
+cb = mf.mo_coeff[1]
 nmoa = ca.shape[1]
 nmob = cb.shape[1]
+eoa = mf.mo_energy[0][:nocca] 
+eob = mf.mo_energy[1][:noccb]  
+eva = mf.mo_energy[0][nocca:] 
+evb = mf.mo_energy[1][noccb:]  
 
 # Transform
 t2aa = numpy.zeros((nvira,nocca,nvira,nocca))
@@ -72,7 +49,6 @@ e_aa = 1.0/(-eva.reshape(-1,1,1,1)+eoa.reshape(-1,1,1)-eva.reshape(-1,1)+eoa)
 t2ab = numpy.zeros((nvira,nocca,nvirb,noccb))
 eri_ab = ao2mo.kernel(mf._eri, (ca,ca,cb,cb), compact=False)
 eri_ab = eri_ab.reshape([nmoa,nmoa,nmob,nmob])
-#eri_ab = eri_ab - eri_ab.transpose(0,3,2,1)
 e_ab = 1.0/(-eva.reshape(-1,1,1,1)+eoa.reshape(-1,1,1)-evb.reshape(-1,1)+eob)
 
 t2bb = numpy.zeros((nvirb,noccb,nvirb,noccb))
@@ -80,10 +56,15 @@ eri_bb = ao2mo.kernel(mf._eri, cb, compact=False).reshape([nmob]*4)
 eri_bb = eri_bb - eri_bb.transpose(0,3,2,1)
 e_bb = 1.0/(-evb.reshape(-1,1,1,1)+eob.reshape(-1,1,1)-evb.reshape(-1,1)+eob)
 
-#e1  = 0.25*numpy.einsum('aibj,iajb,aibj->', eri_aa[va,oa,va,oa], eri_aa[oa,va,oa,va], e_aa)
-#e1 += 1.00*numpy.einsum('aibj,iajb,aibj->', eri_ab[va,oa,vb,ob], eri_ab[oa,va,ob,vb], e_ab)
-#e1 += 0.25*numpy.einsum('aibj,iajb,aibj->', eri_bb[vb,ob,vb,ob], eri_bb[ob,vb,ob,vb], e_bb)
-#print e1
+oa = slice(0, nocca)
+va = slice(nocca, None)
+ob = slice(0, noccb)
+vb = slice(noccb, None)
+
+e1  = 0.25*numpy.einsum('iajb,aibj->', eri_aa[oa,va,oa,va]**2, e_aa)
+e1 += 1.0*numpy.einsum('iaJB,aiBJ->', eri_ab[oa,va,ob,vb]**2, e_ab)
+e1 += 0.25*numpy.einsum('iajb,aibj->', eri_bb[ob,vb,ob,vb]**2, e_bb)
+lib.logger.info(mf,'MP2 energy %5.15f', e1)
 
 e_cepa0 = 0.0
 maxiter = 50
