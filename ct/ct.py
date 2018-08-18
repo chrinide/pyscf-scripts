@@ -21,8 +21,6 @@ mol.symmetry = 1
 mol.build()
     
 mf = scf.RHF(mol)
-mf.chkfile = name+'.chk'
-#mf.__dict__.update(lib.chkfile.load(name+'.chk', 'scf'))
 mf.kernel()
 
 pt2 = mp.MP2(mf)
@@ -30,13 +28,11 @@ pt2.frozen = 2
 pt2.kernel()
 
 mo = mf.mo_coeff
-mc = mcscf.CASSCF(mf, 2, 2)
+mc = mcscf.CASSCF(mf, 10, 10)
 mc.max_cycle_macro = 250
 mc.max_cycle_micro = 7
-mc.chkfile = name+'.chk'
 mc.fcisolver = fci.direct_spin0_symm.FCI()
 mc.fix_spin_(shift=.5, ss=0)
-#mo = lib.chkfile.load(name+'.chk', 'mcscf/mo_coeff')
 emc = mc.mc1step(mo)[0]
     
 mo = mc.mo_coeff
