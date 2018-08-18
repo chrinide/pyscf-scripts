@@ -62,7 +62,7 @@ ob = slice(0, noccb)
 vb = slice(noccb, None)
 
 e1  = 0.25*numpy.einsum('iajb,aibj->', eri_aa[oa,va,oa,va]**2, e_aa)
-e1 += 1.0*numpy.einsum('iaJB,aiBJ->', eri_ab[oa,va,ob,vb]**2, e_ab)
+e1 += 1.00*numpy.einsum('iaJB,aiBJ->', eri_ab[oa,va,ob,vb]**2, e_ab)
 e1 += 0.25*numpy.einsum('iajb,aibj->', eri_bb[ob,vb,ob,vb]**2, e_bb)
 lib.logger.info(mf,'MP2 energy %5.15f', e1)
 
@@ -90,7 +90,6 @@ for it in range(maxiter+1):
     cepa3_ab = cepa3a_ab + cepa3b_ab + cepa3c_ab + cepa3d_ab
 
     t2aa_new = e_aa*(cepa1_aa + cepa2_aa + cepa3_aa + cepa3_ab + mp2_aa)
-    #t2aa_new = e_aa*(mp2_aa)
 
     # Beta-Beta
     mp2_bb = eri_bb[vb, ob, vb, ob]
@@ -111,7 +110,6 @@ for it in range(maxiter+1):
     cepa3_ab = cepa3a_ab + cepa3b_ab + cepa3c_ab + cepa3d_ab
 
     t2bb_new = e_bb*(cepa1_bb + cepa2_bb + cepa3_bb + cepa3_ab + mp2_bb)
-    #t2bb_new = e_aa*(mp2_bb)
 
     # Alpha-Beta == Beta-Alpha 
     mp2_ab = eri_ab[va, oa, vb, ob]
@@ -126,7 +124,6 @@ for it in range(maxiter+1):
     
     t2ab_new = e_ab*(cepa1_ab + cepa2_ab + cepa3_ab + cepa4_ab +cepa5_ab + \
                cepa6_ab + cepa7_ab + cepa8_ab + mp2_ab)
-    #t2ab_new = e_ab*(mp2_ab)
 
     e_cepa0 = 0.25*numpy.einsum('iajb,aibj->', eri_aa[oa,va,oa,va], t2aa_new)
     e_cepa0 += 0.25*numpy.einsum('IAJB,AIBJ->', eri_bb[ob,vb,ob,vb], t2bb_new)
@@ -146,4 +143,11 @@ for it in range(maxiter+1):
  
 lib.logger.info(mf,'CEPA0 Correlation Energy: %5.15f' % (e_cepa0))
 lib.logger.info(mf,'CEPA0 Total Energy: %5.15f' % (e_cepa0 + ehf))
+
+if (mol.spin==0):
+    eri_aa = ao2mo.kernel(mf._eri, ca, compact=False).reshape([nmoa]*4)
+    t2 = t2aa + t2ab + t2ab.transpose(2,3,0,1) + t2bb
+    #t2 = 2.0*t2 - t2.transpose(2,3,0,1)
+    e1 = numpy.einsum('iajb,aibj', eri_aa[oa,va,oa,va], t2)*0.5
+    lib.logger.info(mf,"* Energy with t2 : %5.15f" % e1) 
 
