@@ -6,13 +6,15 @@ from pyscf.tools import molden
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.symmetry = 1
+mol.basis = '6-31g'
 mol.atom = '''
-O          0.000000000000     0.000000000000    -0.065638538099
-H          0.000000000000    -0.757480611647     0.520865616174
-H          0.000000000000     0.757480611647     0.520865616174
-           '''
-mol.basis = 'aug-cc-pvdz'
+O
+H 1 1.1
+H 1 1.1 2 104
+'''
+mol.charge = 0
+mol.spin = 0
+mol.symmetry = 1
 mol.verbose = 4
 mol.build()
 
