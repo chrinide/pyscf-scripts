@@ -10,19 +10,12 @@ from pyscf.mcscf import avas
 
 def hop(tparam, nsites, pbc):
     result = numpy.zeros((nsites,nsites))
-    #for i in xrange(nsites - 1):
-    #    result[i, i + 1] = tparam
-    #    result[i + 1, i] = tparam
-    #for i in xrange(nsites - 2):
-    #    result[i, i + 2] = tparam/2.0
-    #    result[i + 2, i] = tparam/2.0
-    result[:,:] = tparam
-    numpy.fill_diagonal(result, 0.0)
+    for i in xrange(nsites - 1):
+        result[i, i + 1] = tparam
+        result[i + 1, i] = tparam
     if pbc == True:
         result[nsites - 1, 0] = tparam
         result[0, nsites - 1] = tparam
-    #   result[nsites - 2, 0] = tparam/2.0
-    #   result[0, nsites - 2] = tparam/2.0
     return result
 
 def onsite(uparam, nsites):
@@ -35,12 +28,12 @@ def overlap(nsites):
     return numpy.identity(nsites)
 
 name = 'hubbard'
-uparam = 4.0
-tparam = -6.0
-nsites = 6
-nelectrons = 6
+uparam = 0.0
+tparam = -0.5
 spin = 0
-pbc = False
+pbc = True
+nsites = 4
+nelectrons = 4
 
 s = overlap(nsites)
 h1 = hop(tparam,nsites,pbc) 
@@ -56,6 +49,7 @@ mol.incore_anyway = True
 mol.build()
 
 mf = scf.RHF(mol)
+mf = scf.addons.frac_occ(mf)
 mf.conv_tol = 1e-8
 mf.max_cycle = 150
 mf.diis = True
@@ -92,10 +86,10 @@ for ia in range(nsites):
         print ia+1, ib+1, symb1, symb2, 2*factor*pairs2[ia,ib]
 
 mc = mcscf.CASCI(mf, nsites, mol.nelectron)
-mc.fcisolver = fci.SCI(mol)
-mc.fcisolver.ci_coeff_cutoff = 0.01
-mc.fcisolver.select_cutoff = 0.01
-mc.fcisolver.conv_tol = 1e-8
+#mc.fcisolver = fci.SCI(mol)
+#mc.fcisolver.ci_coeff_cutoff = 0.01
+#mc.fcisolver.select_cutoff = 0.01
+#mc.fcisolver.conv_tol = 1e-8
 mc.fix_spin_(shift=1.2, ss=0.0000)
 mc.kernel()
 
@@ -154,7 +148,7 @@ mol.spin = spin
 mol.symmetry = 0
 mol.charge = 0
 mol.incore_anyway = True
-mol.basis = 'sto-3g'
+mol.basis = 'sto-1g'
 mol.atom = atms
 mol.build()
 nmo = mc.ncore + mc.ncas
@@ -168,9 +162,8 @@ wfn_file = name + '.wfn'
 with open(wfn_file, 'w') as f2:
     wfn_format.write_mo(f2, mol, natorb, mo_occ=natocc)
     wfn_format.write_coeff(f2, mol, mc.mo_coeff[:,:nmo])
-    #wfn_format.write_ci(f2, mc.ci, mc.ncas, mc.nelecas, ncore=mc.ncore)
-    #hci.to_fci_wfn_gs_1(f2, mc.ci, mc.ncas, mc.nelecas, root=0, ncore=mc.ncore)
-    #wfn_format.write_ci(f2, select_ci.to_fci(mc.ci,mc.ncas,mc.nelecas), mc.ncas, mc.nelecas, ncore=mc.ncore)
+    wfn_format.write_ci_hubbard(f2, mc.ci, mc.ncas, mc.nelecas, ncore=mc.ncore)
+
 aom_file = name + '.wfn.aom'
 with open(aom_file, 'w') as f2:
     for k in range(nsites): # Over atoms == over primitives
@@ -183,4 +176,3 @@ with open(aom_file, 'w') as f2:
                 if (ij%6 == 0):
                     f2.write("\n")
         f2.write("\n")
-#1 format (6(1x,e16.10)) --> TODO: write modulo 6

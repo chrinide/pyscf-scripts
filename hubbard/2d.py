@@ -4,6 +4,23 @@ import numpy, sys
 from pyscf import gto, scf, mcscf, ao2mo
 from math import *
 
+def hop(tparam, nsites, pbc):
+    result = numpy.zeros((nsites,nsites))
+    #for i in xrange(nsites - 1):
+    #    result[i, i + 1] = tparam
+    #    result[i + 1, i] = tparam
+    #for i in xrange(nsites - 2):
+    #    result[i, i + 2] = tparam/2.0
+    #    result[i + 2, i] = tparam/2.0
+    result[:,:] = tparam
+    numpy.fill_diagonal(result, 0.0)
+    if pbc == True:
+        result[nsites - 1, 0] = tparam
+        result[0, nsites - 1] = tparam
+    #   result[nsites - 2, 0] = tparam/2.0
+    #   result[0, nsites - 2] = tparam/2.0
+    return result
+
 def hop2d(nx, ny):
     n = nx * ny
     mat = numpy.zeros([n, n])
