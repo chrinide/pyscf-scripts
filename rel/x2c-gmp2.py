@@ -23,6 +23,8 @@ enr = mf.kernel()
 pt2 = mp.MP2(mf)
 pt2.kernel()
 
+#lib.param.LIGHT_SPEED = 120.0
+
 mf = x2c.UHF(mol)
 dm = mf.get_init_guess() + 0.1j
 ex2c = mf.kernel(dm)
