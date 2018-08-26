@@ -59,8 +59,8 @@ ecore -= numpy.einsum('ijij', eri_mo[:ncore, :ncore, :ncore, :ncore])
 # Active space one-body integrals
 norb = ncore + nact
 h1e = h1[ncore:norb, ncore:norb].copy()
-h1e += 2*numpy.einsum('acbb->ac', eri_mo[ncore:norb, ncore:norb, :ncore, :ncore])
-h1e -= numpy.einsum('abbc->ac', eri_mo[ncore:norb, :ncore, :ncore, ncore:norb])
+h1e += 2*numpy.einsum('pqii->pq', eri_mo[ncore:norb, ncore:norb, :ncore, :ncore])
+h1e -= numpy.einsum('piiq->pq', eri_mo[ncore:norb, :ncore, :ncore, ncore:norb])
 
 # Active space two-body integrals
 h2e = eri_mo[ncore:norb, ncore:norb, ncore:norb, ncore:norb]
