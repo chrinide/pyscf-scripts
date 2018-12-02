@@ -2,24 +2,12 @@
 
 import numpy
 from functools import reduce
-from pyscf import gto, scf, lo, dft, lib
-from pyscf.tools import wfn_format, molden
+from pyscf import gto, scf, dft, lib
+from pyscf.tools import wfn_format
 
 def get_pop(dm, s, lmultipliers):
 
     label = mol.spheric_labels(False)
-
-    #pop = numpy.einsum('ij,ji->i', dm,s)
-    #chg1 = numpy.zeros(mol.natm)
-    #qq1 = numpy.zeros(mol.natm)
-    #for i, s1 in enumerate(label):
-    #    chg1[s1[0]] += pop[i]
-    #for ia in range(mol.natm):
-    #    symb = mol.atom_symbol(ia)
-    #    qq1[ia] = mol.atom_charge(ia)-chg1[ia]
-    #    lib.logger.info(mf, 'Pop, Q, of %d %s = %12.6f %12.6f' \
-    #    % (ia+1, symb, chg1[ia], qq1[ia]))
-
     nao = dm.shape[0]
     fock = numpy.zeros_like(dm)
     for ia in range(mol.natm):
@@ -51,8 +39,6 @@ mol.atom = '''
 H  0.000000000000000  0.000000000000000  0.000000000000000
 H  0.000000000000000  0.000000000000000  0.750000000000000
 '''
-#Li  0.000000000000000  0.000000000000000  0.000000000000000
-#F   0.000000000000000  0.000000000000000  1.600000000000000
 mol.basis = 'sto-3g'
 mol.spin = 0
 mol.charge = 0
@@ -60,24 +46,16 @@ mol.symmetry = 0
 mol.build()
 
 mf = scf.RHF(mol)
-mf.verbose = 0
+mf.verbose = 4
 mf.kernel()
-dm = mf.make_rdm1()
+mf.analyze(with_meta_lowdin=False)
 
+dm = mf.make_rdm1()
 multiplicadores = numpy.zeros(mol.natm)
+multiplicadores = [0.0,0.2]
 
 my_diis_obj = scf.ADIIS()
 my_diis_obj.diis_space = 14
-
-x = [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0,
-0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-x = numpy.asarray(x)
-ehf = []
-
-#for b in x:
-#    multiplicadores = [0.0,b]
-
-multiplicadores = [0.0,0.2]
 mf = scf.RHF(mol)
 mf.conv_tol = 1e-6
 mf.max_cycle = 120
@@ -85,7 +63,7 @@ mf.diis = my_diis_obj
 old_get_fock = mf.get_fock
 mf.get_fock = get_cfock 
 #mf.verbose = 3
-ehf.append(mf.kernel(dm0=dm))
+mf.kernel(dm0=dm)
 mf.analyze(with_meta_lowdin=False)
 dm = mf.make_rdm1()
 
