@@ -1,0 +1,11 @@
+0
+lif_4p0.wfn.aom
+lif_4p0.wfn
+#coremo 0.99
+#locore
+norecur
+probcut 1d-4
+ngroup 2
+1 1
+1 2
+end

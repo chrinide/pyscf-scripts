@@ -12,7 +12,10 @@ mol.build(
 
 h = mol.intor('cint1e_kin_sph') + mol.intor('cint1e_nuc_sph')  
 E = [0.0,0.0,-0.01]
-mol.set_common_orig([0, 0, 0])  # The gauge origin for dipole integral
+origin = ([0.0,0.0,0.0])
+charges = mol.atom_charges()
+coords  = mol.atom_coords()
+mol.set_common_orig(origin) # The gauge origin for dipole integral
 e = numpy.einsum('x,xij->ij', E, mol.intor('cint1e_r_sph', comp=3)) 
 h1 = h + e
 

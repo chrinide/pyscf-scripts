@@ -1,0 +1,19 @@
+lif_-0p3.wfn
+nosymmetry
+tes
+  epsiscp 0.220
+  radialquad 7
+  rmapping 2
+  lmax 10
+  nr 551
+  lebedev 5810
+  betasphere
+  betarad 3 0.200
+  betarad 9 0.380
+  radialquadbeta 7
+  rmappingbeta 3
+  lmaxbeta 8
+  nrb 451
+  lebedevbeta 3074
+  dafh
+endtes

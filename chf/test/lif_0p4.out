@@ -1,0 +1,267 @@
+#INFO: **** input file is /home/jluis/src/git/scripts/chf/test/chf.py ****
+#!/usr/bin/env python
+
+import numpy
+from functools import reduce
+from pyscf import gto, scf, lo, dft, lib
+from pyscf.tools import wfn_format, molden
+
+def get_pop(dm, s, lmultipliers):
+
+    label = mol.spheric_labels(False)
+
+    #pop = numpy.einsum('ij,ji->i', dm,s)
+    #chg1 = numpy.zeros(mol.natm)
+    #qq1 = numpy.zeros(mol.natm)
+    #for i, s1 in enumerate(label):
+    #    chg1[s1[0]] += pop[i]
+    #for ia in range(mol.natm):
+    #    symb = mol.atom_symbol(ia)
+    #    qq1[ia] = mol.atom_charge(ia)-chg1[ia]
+    #    lib.logger.info(mf, 'Pop, Q, of %d %s = %12.6f %12.6f' \
+    #    % (ia+1, symb, chg1[ia], qq1[ia]))
+
+    nao = dm.shape[0]
+    fock = numpy.zeros_like(dm)
+    for ia in range(mol.natm):
+        g = numpy.zeros_like(dm)
+        iden = numpy.zeros_like(dm)
+        for i, s1 in enumerate(label):
+            if (s1[0]==ia):
+                iden[i,:] = 1.0
+        iden = 0.5*(iden+iden.T)
+        #print iden
+        #tmp = numpy.einsum('ij,ji->ij',iden,s)
+        #tmp = numpy.einsum('ij,ji->',tmp,dm)
+        #lib.logger.info(mf, 'Pop of %d = %12.6f' % (ia+1, tmp))
+        g = numpy.einsum('ij,ji->ij', iden,s)
+        fock += lmultipliers[ia]*g
+
+    return fock
+
+def get_cfock(h1e, s1e, vhf, dm, cycle=0, mf_diis=None):
+    fock = old_get_fock(h1e, s1e, vhf, dm, cycle, mf_diis)
+    fock -= get_pop(dm, s1e, multiplicadores) 
+    return fock
+
+mol = gto.Mole()
+mol.verbose = 4
+mol.atom = '''
+Li  0.000000000000000  0.000000000000000  0.000000000000000
+F   0.000000000000000  0.000000000000000  1.563900000000000
+'''
+mol.basis = '6-31g'
+mol.spin = 0
+mol.charge = 0
+mol.symmetry = 0
+mol.build()
+
+mf = scf.RHF(mol)
+mf.verbose = 0
+mf.kernel()
+dm = mf.make_rdm1()
+
+multiplicadores = numpy.zeros(mol.natm)
+
+my_diis_obj = scf.ADIIS()
+my_diis_obj.diis_space = 14
+
+x = [-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0,
+0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+x = numpy.asarray(x)
+ehf = []
+
+#for b in x:
+#    multiplicadores = [0.0,b]
+
+multiplicadores = [0.0,0.4]
+mf = scf.RHF(mol)
+mf.conv_tol = 1e-6
+mf.max_cycle = 120
+mf.diis = my_diis_obj
+old_get_fock = mf.get_fock
+mf.get_fock = get_cfock 
+#mf.verbose = 3
+ehf.append(mf.kernel(dm0=dm))
+mf.analyze(with_meta_lowdin=False)
+dm = mf.make_rdm1()
+
+name = 'lif_0p4'    
+wfn_file = name + '.wfn'
+with open(wfn_file, 'w') as f2:
+    wfn_format.write_mo(f2, mol, mf.mo_coeff[:,mf.mo_occ>0], \
+    mo_occ=mf.mo_occ[mf.mo_occ>0], mo_energy=mf.mo_energy[mf.mo_occ>0])
+
+#INFO: ******************** input file end ********************
+
+
+System: ('Linux', 'silicio', '3.16.0-4-amd64', '#1 SMP Debian 3.16.51-3 (2017-12-13)', 'x86_64', '')  Threads 12
+Python 2.7.15 (default, Oct 25 2018, 01:35:55) 
+[GCC 8.2.0]
+numpy 1.15.3  scipy 1.1.0
+Date: Thu Nov  1 03:09:00 2018
+PySCF version 1.6a
+PySCF path  /home/jluis/src/pyscf/dev/pyscf
+GIT ORIG_HEAD 090d7a77795211ecfcdfc6ced606736fde25d1c7
+GIT HEAD      ref: refs/heads/dev
+GIT dev branch  27eb228cd9fdd7aebc89cf429224ff485f9c21c4
+
+[ENV] PYSCF_TMPDIR /scratch-ssd/jluis
+[CONFIG] conf_file None
+[INPUT] verbose = 4
+[INPUT] num. atoms = 2
+[INPUT] num. electrons = 12
+[INPUT] charge = 0
+[INPUT] spin (= nelec alpha-beta = 2S) = 0
+[INPUT] symmetry 0 subgroup None
+[INPUT] Mole.unit = angstrom
+[INPUT]  1 Li     0.000000000000   0.000000000000   0.000000000000 AA    0.000000000000   0.000000000000   0.000000000000 Bohr
+[INPUT]  2 F      0.000000000000   0.000000000000   1.563900000000 AA    0.000000000000   0.000000000000   2.955342686207 Bohr
+
+nuclear repulsion = 9.13599635196624
+number of shells = 10
+number of NR pGTOs = 44
+number of NR cGTOs = 18
+basis = 6-31g
+ecp = {}
+CPU time:         0.34
+
+
+******** <class 'pyscf.scf.hf.RHF'> ********
+method = RHF
+initial guess = minao
+damping factor = 0
+level shift factor = 0
+DIIS = <pyscf.scf.diis.ADIIS object at 0x2b5581f76750>
+DIIS start cycle = 1
+DIIS space = 6
+SCF tol = 1e-06
+SCF gradient tol = None
+max. SCF cycles = 120
+direct_scf = True
+direct_scf_tol = 1e-13
+chkfile to save SCF result = /scratch-ssd/jluis/tmpHUiwno
+max_memory 4000 MB (current use 71 MB)
+Set gradient conv threshold to 0.001
+init E= -106.920889785846
+  HOMO = -0.844532580192281  LUMO = 0.00376763681938053
+cycle= 1 E= -106.875928688307  delta_E= 0.045  |g|= 0.124  |ddm|= 0.861
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 2 E= -106.862482727963  delta_E= 0.0134  |g|= 0.0411  |ddm|= 0.173
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 3 E= -106.862482727963  delta_E=    0  |g|= 0.0411  |ddm|=    0
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 4 E= -106.862482727963  delta_E=    0  |g|= 0.0411  |ddm|= 7.45e-32
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 5 E= -106.862482727963  delta_E=    0  |g|= 0.0411  |ddm|= 7.45e-32
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 6 E= -106.862482727963  delta_E=    0  |g|= 0.0411  |ddm|=    0
+  HOMO = -0.779796151178032  LUMO = -0.000901164715787425
+cycle= 7 E= -106.862482727963  delta_E=    0  |g|= 0.0411  |ddm|=    0
+  HOMO = -0.80038566161678  LUMO = -0.00156557288190672
+cycle= 8 E= -106.859487244158  delta_E= 0.003  |g|= 0.0228  |ddm|= 0.0394
+  HOMO = -0.800385661616781  LUMO = -0.00156557288190659
+cycle= 9 E= -106.859487244158  delta_E= 2.84e-14  |g|= 0.0228  |ddm|= 1.4e-14
+  HOMO = -0.800385661616779  LUMO = -0.00156557288190787
+cycle= 10 E= -106.859487244158  delta_E= -8.53e-14  |g|= 0.0228  |ddm|= 8.99e-15
+  HOMO = -0.80038566161678  LUMO = -0.00156557288190695
+cycle= 11 E= -106.859487244158  delta_E= 8.53e-14  |g|= 0.0228  |ddm|= 1.18e-14
+  HOMO = -0.80038566161678  LUMO = -0.00156557288190586
+cycle= 12 E= -106.859487244158  delta_E=    0  |g|= 0.0228  |ddm|= 1.74e-14
+  HOMO = -0.80038566161678  LUMO = -0.00156557288190534
+cycle= 13 E= -106.859487244158  delta_E= 2.84e-14  |g|= 0.0228  |ddm|= 1.37e-14
+  HOMO = -0.787192758994475  LUMO = -0.00172829081506155
+cycle= 14 E= -106.858925359743  delta_E= 0.000562  |g|= 0.0113  |ddm|= 0.0196
+  HOMO = -0.787192758994474  LUMO = -0.00172829081506
+cycle= 15 E= -106.858925359743  delta_E= -2.84e-14  |g|= 0.0113  |ddm|= 7.97e-15
+  HOMO = -0.787192758994476  LUMO = -0.00172829081506194
+cycle= 16 E= -106.858925359743  delta_E= -7.11e-14  |g|= 0.0113  |ddm|= 1.03e-14
+  HOMO = -0.787192758994475  LUMO = -0.00172829081505978
+cycle= 17 E= -106.858925359743  delta_E= 4.26e-14  |g|= 0.0113  |ddm|= 1.45e-14
+  HOMO = -0.787192758994476  LUMO = -0.00172829081506135
+cycle= 18 E= -106.858925359743  delta_E= 9.95e-14  |g|= 0.0113  |ddm|= 1.94e-14
+  HOMO = -0.787192758994474  LUMO = -0.00172829081506227
+cycle= 19 E= -106.858925359743  delta_E= -1.42e-14  |g|= 0.0113  |ddm|= 9.68e-15
+  HOMO = -0.793693025054404  LUMO = -0.00176125237762074
+cycle= 20 E= -106.858777221777  delta_E= 0.000148  |g|= 0.00609  |ddm|= 0.00913
+  HOMO = -0.793693025054405  LUMO = -0.00176125237762118
+cycle= 21 E= -106.858777221777  delta_E= -1.42e-14  |g|= 0.00609  |ddm|= 1.11e-14
+  HOMO = -0.793693025054404  LUMO = -0.00176125237762115
+cycle= 22 E= -106.858777221777  delta_E= 4.26e-14  |g|= 0.00609  |ddm|= 1.17e-14
+  HOMO = -0.7936930250544  LUMO = -0.00176125237762028
+cycle= 23 E= -106.858777221777  delta_E= -1.14e-13  |g|= 0.00609  |ddm|= 1.52e-14
+  HOMO = -0.793693025054405  LUMO = -0.00176125237762069
+cycle= 24 E= -106.858777221777  delta_E= 1.14e-13  |g|= 0.00609  |ddm|= 2.79e-14
+  HOMO = -0.793693025054404  LUMO = -0.00176125237762106
+cycle= 25 E= -106.858777221777  delta_E= -8.53e-14  |g|= 0.00609  |ddm|= 1.64e-14
+  HOMO = -0.790179850542302  LUMO = -0.00177221398022655
+cycle= 26 E= -106.858757510198  delta_E= 1.97e-05  |g|= 0.00317  |ddm|= 0.00496
+  HOMO = -0.790179850542302  LUMO = -0.00177221398022571
+cycle= 27 E= -106.858757510198  delta_E= 8.53e-14  |g|= 0.00317  |ddm|= 8.69e-15
+  HOMO = -0.790179850542303  LUMO = -0.00177221398022836
+cycle= 28 E= -106.858757510198  delta_E=    0  |g|= 0.00317  |ddm|= 1.53e-14
+  HOMO = -0.790179850549936  LUMO = -0.00177221398023199
+cycle= 29 E= -106.858757510198  delta_E= -2.84e-14  |g|= 0.00317  |ddm|= 1.07e-11
+  HOMO = -0.790179850542389  LUMO = -0.00177221398022714
+cycle= 30 E= -106.858757510198  delta_E= -7.11e-14  |g|= 0.00317  |ddm|= 1.06e-11
+  HOMO = -0.790179850544776  LUMO = -0.00177221398022839
+cycle= 31 E= -106.858757510198  delta_E=    0  |g|= 0.00317  |ddm|= 3.34e-12
+  HOMO = -0.792013893468636  LUMO = -0.00177352772576485
+cycle= 32 E= -106.858745948459  delta_E= 1.16e-05  |g|= 0.00168  |ddm|= 0.00256
+  HOMO = -0.792013893466372  LUMO = -0.00177352772576449
+cycle= 33 E= -106.858745948459  delta_E= 4.26e-14  |g|= 0.00168  |ddm|= 3.18e-12
+  HOMO = -0.792013893468174  LUMO = -0.00177352772576338
+cycle= 34 E= -106.858745948459  delta_E= 4.26e-14  |g|= 0.00168  |ddm|= 2.53e-12
+  HOMO = -0.792013893467686  LUMO = -0.0017735277257619
+cycle= 35 E= -106.858745948459  delta_E= -2.84e-14  |g|= 0.00168  |ddm|= 6.87e-13
+  HOMO = -0.792013893468473  LUMO = -0.00177352772576055
+cycle= 36 E= -106.858745948459  delta_E= -2.84e-14  |g|= 0.00168  |ddm|= 1.1e-12
+  HOMO = -0.792013893400249  LUMO = -0.0017735277258375
+cycle= 37 E= -106.858745948459  delta_E= -2.84e-14  |g|= 0.00168  |ddm|= 9.59e-11
+  HOMO = -0.791045434843955  LUMO = -0.00177460654785926
+cycle= 38 E= -106.858746937916  delta_E= -9.89e-07  |g|= 0.000882  |ddm|= 0.00136
+  HOMO = -0.791555348308774  LUMO = -0.0017744843001775
+Extra cycle  E= -106.858745204644  delta_E= 1.73e-06  |g|= 0.000465  |ddm|= 0.000714
+converged SCF energy = -106.858745204644
+**** MO energy ****
+MO #1   energy= -26.4063853254226  occ= 2
+MO #2   energy= -2.46493385899307  occ= 2
+MO #3   energy= -1.70609283100687  occ= 2
+MO #4   energy= -0.808468895206826 occ= 2
+MO #5   energy= -0.791555348308775 occ= 2
+MO #6   energy= -0.791555348308774 occ= 2
+MO #7   energy= -0.0017744843001775 occ= 0
+MO #8   energy= 0.0708009349791118 occ= 0
+MO #9   energy= 0.0708009349791127 occ= 0
+MO #10  energy= 0.136997069549007  occ= 0
+MO #11  energy= 0.203695130213742  occ= 0
+MO #12  energy= 0.23915063481993   occ= 0
+MO #13  energy= 0.239150634819937  occ= 0
+MO #14  energy= 0.455658015769728  occ= 0
+MO #15  energy= 1.35094188584751   occ= 0
+MO #16  energy= 1.35094188584751   occ= 0
+MO #17  energy= 1.39606784679171   occ= 0
+MO #18  energy= 1.78976443404273   occ= 0
+ ** Mulliken pop  **
+pop of  0 Li 1s        1.99235
+pop of  0 Li 2s       -0.07599
+pop of  0 Li 3s        0.02586
+pop of  0 Li 2px       0.00439
+pop of  0 Li 2py       0.00439
+pop of  0 Li 2pz      -0.10636
+pop of  0 Li 3px       0.00074
+pop of  0 Li 3py       0.00074
+pop of  0 Li 3pz       0.02657
+pop of  1 F 1s        1.99779
+pop of  1 F 2s        0.83013
+pop of  1 F 3s        1.29562
+pop of  1 F 2px       1.10258
+pop of  1 F 2py       1.10258
+pop of  1 F 2pz       1.09784
+pop of  1 F 3px       0.89230
+pop of  1 F 3py       0.89230
+pop of  1 F 3pz       0.91619
+ ** Mulliken atomic charges  **
+charge of  0Li =      1.12732
+charge of  1F =     -1.12732
+Dipole moment(X, Y, Z, Debye): -0.00000,  0.00000, -7.41882

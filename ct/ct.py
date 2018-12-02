@@ -50,6 +50,8 @@ logger.info(mc, str(occ))
 natocc = numpy.zeros(mo.shape[1])
 natocc[:ncore] = 1
 natocc[ncore:nocc] = occ[::-1] * .5
+logger.info(mc, 'Natural occs')
+logger.info(mc, str(natocc))
 natorb = numpy.dot(mo[:,ncore:nocc], ucas[:,::-1])
 natorb = numpy.hstack((mo[:,:ncore], natorb, mo[:,nocc:]))
     
