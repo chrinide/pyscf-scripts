@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-#!/usr/bin/env python
+#TODO: print more info on dump flags such as shift
+#TODO: add self.model to select CI expansion
+
 # Copyright 2014-2018 The PySCF Developers. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -126,8 +128,12 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
         t_start = time.time()
         dets = cistring.gen_full_space(range(norb), nelec) 
         ndets = dets.shape[0]
-        ci0 = [cistring.as_SCIvector(numpy.zeros(ndets), dets)]
-        ci0[0][0] = 1.0
+        #ci0 = [cistring.as_SCIvector(numpy.zeros(ndets), dets)]
+        #ci0[0][0] = 1.0
+        numpy.random.seed(1)
+        ci0 = [cistring.as_SCIvector(numpy.random.uniform(low=1e-5,high=1e-3,size=ndets), dets)]
+        ci0[0][0] = 0.98
+        ci0[0] *= 1./numpy.linalg.norm(ci0[0])
         t_current = time.time() - t_start
         logger.info(myci, 'Timing for generating strings: %10.3f', t_current)
     else:
@@ -147,14 +153,14 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
 
     t_start = time.time()
     with lib.with_omp_threads(myci.threads):
-        #e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-        #                max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-        #                max_memory=max_memory, verbose=verbose, **kwargs)
-        #
         e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-                       max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-                       max_memory=max_memory, verbose=verbose, follow_state=True,
-                       tol_residual=tol_residual, **kwargs)
+                        max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+                        max_memory=max_memory, verbose=verbose, **kwargs)
+        
+        #e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
+        #               max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+        #               max_memory=max_memory, verbose=verbose, follow_state=True,
+        #               tol_residual=tol_residual, **kwargs)
     t_current = time.time() - t_start
     logger.info(myci, 'Timing for solving the eigenvalue problem: %10.3f', t_current)
     if not isinstance(c, (tuple, list)):
@@ -323,7 +329,7 @@ Li 0.0000  0.0000  2.6500
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
-    mol.symmetry = 1
+    mol.symmetry = 0
     mol.build()
 
     mf = scf.RHF(mol)
@@ -345,24 +351,22 @@ Li 0.0000  0.0000  2.6500
     #nelec = (3,3)
     #norb = cas_idx.size
 
+    roots = 2
     ncore = 2
     norb = mf.mo_coeff.shape[0] - ncore
     nelec = mol.nelectron - ncore*2
     nelec = (nelec/2,nelec/2)
-    roots = 2
     mc = mcscf.CASCI(mf, norb, nelec)
     h1e, e_core = mc.get_h1eff()
     h2e = mc.get_h2eff()
 
     mc = CI()
-    mc = fix_spin(mc, ss=0, shif=0.8)  # ss = S^2
+    #mc = fix_spin(mc, ss=0, shif=0.8)  # ss = S^2
     mc.nroots = roots
     mc.verbose = 4
     e, civec = mc.kernel(h1e, h2e, norb, nelec, ecore=e_core, verbose=5)
     logger.info(mc,"* CI Energy : %s" % e)    
-    s0 = mc.spin_square(civec[0], norb, nelec)
-    s1 = mc.spin_square(civec[1], norb, nelec)
-    print s0, s1
+    #s0 = mc.spin_square(civec[0], norb, nelec)
 
     #t_start = time.time()
     #cisolver = fci.FCI(mol)
