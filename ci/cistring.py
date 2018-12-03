@@ -88,21 +88,6 @@ def orblst2str(lst, norb):
     return string
 
 def gen_strings4orblist(orb_list, nelec):
-    '''Generate string from the given orbital list.
-
-    Returns:
-        list of int64.  One int64 element represents one string in binary format.
-        The binary format takes the convention that the one bit stands for one
-        orbital, bit-1 means occupied and bit-0 means unoccupied.  The lowest
-        (right-most) bit corresponds to the lowest orbital in the orb_list.
-
-    Exampels:
-
-    >>> [bin(x) for x in gen_strings4orblist((0,1,2,3),2)]
-    [0b11, 0b101, 0b110, 0b1001, 0b1010, 0b1100]
-    >>> [bin(x) for x in gen_strings4orblist((3,1,0,2),2)]
-    [0b1010, 0b1001, 0b11, 0b1100, 0b110, 0b101]
-    '''
     orb_list = list(orb_list)
     if len(orb_list) > 63:
         raise RuntimeError('''
@@ -152,6 +137,7 @@ def as_SCIvector_if_not(civec, ci_strs):
         civec = as_SCIvector(civec, ci_strs)
     return civec
 
+# TODO: fast loop over alpha/beta, add excitation operators
 def gen_full_space(orb_list, nelec):
 
     if len(orb_list) > 63:
@@ -164,6 +150,7 @@ You see this error message because we only support up to 64 orbitals''')
     stringb = gen_strings4orblist(orb_list, nelecb)
     ndets = stringa.shape[0]*stringb.shape[0]
     dets = numpy.zeros((ndets,2), dtype=numpy.uint64)
+    print ndets
     k = 0
     for i in range(stringa.shape[0]):
         for j in range(stringb.shape[0]):

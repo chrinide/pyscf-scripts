@@ -39,3 +39,8 @@ void argunique(uint64_t *strs, uint64_t *sort_idx, uint64_t *nstrs, int nset);
 void contract_ss_c(int norb, int neleca, int nelecb, uint64_t *strs, double *civec, uint64_t ndet, double *ci1);
 void contract_h_c_ss_c(double *h1, double *eri, int norb, int neleca, int nelecb, uint64_t *strs, double *civec, double *hdiag, uint64_t ndet, double *ci1, double *ci2);
 void compute_rdm12s(int norb, int neleca, int nelecb, uint64_t *strs, double *civec, uint64_t ndet, double *rdm1a, double *rdm1b, double *rdm2aa, double *rdm2ab, double *rdm2bb);
+
+//extern int __builtin_popcountll (uint64_t x_0);
+//#define popcount(X) __builtin_popcountll((uint64_t) X)
+//extern int __builtin_ctzll (uint64_t x_0);
+//#define trailz(X) __builtin_ctzll((uint64_t) X)

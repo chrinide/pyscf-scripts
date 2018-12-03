@@ -198,7 +198,6 @@ int n_excitations(uint64_t *str1, uint64_t *str2, int nset) {
 
 }
 
-// Compute number of set bits in a string
 int popcount(uint64_t x) {
 
     const uint64_t m1  = 0x5555555555555555; //binary: 0101...
