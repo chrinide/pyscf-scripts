@@ -122,10 +122,13 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
 
     # Initial guess
     if ci0 is None:
+        t_start = time.time()
         dets = cistring.gen_full_space(range(norb), nelec) 
         ndets = dets.shape[0]
         ci0 = [cistring.as_SCIvector(numpy.zeros(ndets), dets)]
         ci0[0][0] = 1.0
+        t_current = time.time() - t_start
+        logger.info(myci, 'Timing for generating strings: %10.3f', t_current)
     else:
         assert(nroots == len(ci0))
 
@@ -326,22 +329,34 @@ Li 0.0000  0.0000  2.6500
     mf = scf.RHF(mol)
     mf.kernel()
 
-    nelec = (3,3)
-    nao, nmo = mf.mo_coeff.shape
-    eri = ao2mo.kernel(mf._eri, mf.mo_coeff[:,:nmo], compact=False)
-    eri = eri.reshape(nmo,nmo,nmo,nmo)
-    h1 = reduce(numpy.dot, (mf.mo_coeff[:,:nmo].T, mf.get_hcore(), mf.mo_coeff[:,:nmo]))
+    ncore = 0
+    e_core = mol.energy_nuc()
+    core_idx = numpy.arange(ncore)
+    ncore = core_idx.size
+    cas_idx = numpy.arange(ncore, numpy.shape(mf.mo_coeff)[1])
+    hcore = mf.get_hcore()
+    core_dm = numpy.dot(mf.mo_coeff[:, core_idx], mf.mo_coeff[:, core_idx].T)*2.0
+    e_core += numpy.einsum('ij,ji', core_dm, hcore)
+    corevhf = scf.hf.get_veff(mol, core_dm)
+    e_core += numpy.einsum('ij,ji', core_dm, corevhf)*0.5
+    h1e = reduce(numpy.dot, (mf.mo_coeff[:, cas_idx].T, hcore + corevhf, mf.mo_coeff[:, cas_idx]))
+    h2e = ao2mo.full(mf._eri, mf.mo_coeff[:, cas_idx])
+    nelec = mol.nelectron - ncore*2
+    #nelec = (3,3)
+    norb = cas_idx.size
 
     mc = CI()
     mc.nroots = 2
     mc.verbose = 4
-    e = mc.kernel(h1, eri, nmo, nelec, verbose=5)[0]
-    e += mf.energy_nuc()
-    print('E(CI) = %s' % e)
+    e = mc.kernel(h1e, h2e, norb, nelec, ecore=e_core, verbose=5)[0]
+    logger.info(mc,"* CI Energy : %s" % e)    
 
     t_start = time.time()
-    cisolver = fci.FCI(mol, mf.mo_coeff)
+    cisolver = fci.FCI(mol)
+    #cisolver = fci.direct_spin1_symm.FCI(mol)
+    cisolver.verbose = 4
     cisolver.nroots = 2
-    print('E(FCI) = %s' % cisolver.kernel()[0])
+    e = cisolver.kernel(h1e, h2e, norb, nelec, ecore=e_core)[0]
     t_current = time.time() - t_start
-    logger.info(cisolver,'Timing for solving the eigenvalue problem: %10.3f', t_current)
+    logger.info(cisolver,"* FCI Energy : %s" % e)    
+    logger.info(cisolver,"* Timing for solving the eigenvalue problem: %10.3f", t_current)
