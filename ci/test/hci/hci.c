@@ -195,6 +195,7 @@ int n_excitations(uint64_t *str1, uint64_t *str2, int nset) {
     }
 
     return d / 2;
+    //return (d >> 1);
 
 }
 

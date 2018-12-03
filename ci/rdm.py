@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+import numpy
+import ctypes
 from pyscf import lib
+
 libhci = lib.load_library('libhci')
 
 def make_rdm12s(civec, norb, nelec):

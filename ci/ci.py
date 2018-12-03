@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-#TODO: print more info on dump flags such as shift
-#TODO: add self.model to select CI expansion
+# TODO: update hci.c with cuttof when c0[i] is less than or
+# based in ERI screaning
+# TODO: add density fitting
+# TODO: add noise on ERI
+# TODO: improve hdiag
 
 # Copyright 2014-2018 The PySCF Developers. All Rights Reserved.
 #
@@ -24,13 +27,17 @@
 import numpy
 import time
 import ctypes
+
 import cistring
+import rdm
+
 from pyscf import lib
 from pyscf import ao2mo
 from pyscf.lib import logger
 from pyscf.fci import direct_spin1
 
 libhci = lib.load_library('libhci')
+einsum = lib.einsum
 
 def contract_2e(h1_h2, civec, norb, nelec, hdiag=None, **kwargs):
     h1, eri = h1_h2
@@ -87,8 +94,8 @@ def contract_ss(civec, norb, nelec):
 
 def make_hdiag(h1e, eri, strs, norb, nelec):
     eri = ao2mo.restore(1, eri, norb)
-    diagj = numpy.einsum('iijj->ij',eri)
-    diagk = numpy.einsum('ijji->ij',eri)
+    diagj = einsum('iijj->ij',eri)
+    diagk = einsum('ijji->ij',eri)
 
     ndet = len(strs)
     hdiag = numpy.zeros(ndet)
@@ -104,7 +111,7 @@ def make_hdiag(h1e, eri, strs, norb, nelec):
 
 def kernel(myci, h1e, eri, norb, nelec, ci0=None,
            tol=None, lindep=None, max_cycle=None, max_space=None,
-           nroots=None, davidson_only=None, max_iter=None,
+           nroots=None, davidson_only=None, 
            max_memory=None, verbose=None, ecore=0, **kwargs):
 
     if tol is None: tol = myci.conv_tol
@@ -113,7 +120,6 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
     if max_space is None: max_space = myci.max_space
     if max_memory is None: max_memory = myci.max_memory
     if nroots is None: nroots = myci.nroots
-    if max_iter is None: max_iter = myci.max_iter
     if verbose is None: verbose = logger.Logger(myci.stdout, myci.verbose)
     tol_residual = getattr(fci, 'conv_tol_residual', None)
     myci.dump_flags()
@@ -126,15 +132,21 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
     # Initial guess
     if ci0 is None:
         t_start = time.time()
-        dets = cistring.gen_full_space(range(norb), nelec) 
-        ndets = dets.shape[0]
-        #ci0 = [cistring.as_SCIvector(numpy.zeros(ndets), dets)]
-        #ci0[0][0] = 1.0
-        numpy.random.seed(1)
-        ci0 = [cistring.as_SCIvector(numpy.random.uniform(low=1e-5,high=1e-3,size=ndets), dets)]
-        ci0[0][0] = 0.98
-        ci0[0] *= 1./numpy.linalg.norm(ci0[0])
+        if (myci.model == 'fci'):
+            dets = cistring.gen_full_space(range(norb), nelec) 
+            ndets = dets.shape[0]
+            if (myci.noise):
+                numpy.random.seed()
+                ci0 = [cistring.as_SCIvector(numpy.random.uniform(low=1e-3,high=1e-2,size=ndets), dets)]
+                ci0[0][0] = 0.99
+                ci0[0] *= 1./numpy.linalg.norm(ci0[0])
+            else:
+                ci0 = [cistring.as_SCIvector(numpy.zeros(ndets), dets)]
+                ci0[0][0] = 1.0
+        else:
+            raise RuntimeError('''Unknown CI model''')
         t_current = time.time() - t_start
+        #logger.info(myci, 'Initial CI vector = %s', ci0[0][:])
         logger.info(myci, 'Timing for generating strings: %10.3f', t_current)
     else:
         assert(nroots == len(ci0))
@@ -153,20 +165,30 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
 
     t_start = time.time()
     with lib.with_omp_threads(myci.threads):
-        e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-                        max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-                        max_memory=max_memory, verbose=verbose, **kwargs)
-        
         #e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-        #               max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-        #               max_memory=max_memory, verbose=verbose, follow_state=True,
-        #               tol_residual=tol_residual, **kwargs)
+        #                max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+        #                max_memory=max_memory, verbose=verbose, **kwargs)
+        #
+        e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
+                       max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+                       max_memory=max_memory, verbose=verbose, follow_state=True,
+                       tol_residual=tol_residual, **kwargs)
     t_current = time.time() - t_start
     logger.info(myci, 'Timing for solving the eigenvalue problem: %10.3f', t_current)
     if not isinstance(c, (tuple, list)):
         c = [c]
         e = [e]
     logger.info(myci, 'CI  E = %s', numpy.array(e)+ecore)
+    #myci.eci = e+ecore
+    #myci.ci = e
+    #for i in range(nroots):
+    #    norm = numpy.einsum('i,i->', ci0[i][:], ci0[i][:])
+    #    s = myci.spin_square(ci0[i], norb, nelec)
+    #    logger.info(myci, 'E(CI) = %10.5f, CI E = %10.5f, Norm = %1.3f, Spin = %s'\
+    #    % (numpy.array(e[i]), numpy.array(e[i])+ecore, norm, s))
+    #    #logger.info(myci, 'CI E = %s', numpy.array(e)+ecore)
+    #    #logger.info(mc,"* Norm info for state %d : %s" % (i,norm))    
+    #    #logger.info(mc,"* Spin info for state %d : %s" % (i,s))    
 
     return (numpy.array(e)+ecore), [cistring.as_SCIvector(ci, ci_strs) for ci in c]
 
@@ -253,13 +275,11 @@ class CI(direct_spin1.FCISolver):
     def __init__(self, mol=None):
         direct_spin1.FCISolver.__init__(self, mol)
         self.conv_tol = 1e-6
-        self.nroots = 1
-        self.max_iter = 4
-        self.max_memory = 1000
-
+        self.model = 'fci'
+        self.noise = False
 ##################################################
 # don't modify the following attributes, they are not input options
-        self.ndets = None
+        self._ndets = None
         self._strs = None
         self._keys = set(self.__dict__.keys())
 
@@ -267,10 +287,10 @@ class CI(direct_spin1.FCISolver):
         if self.verbose >= logger.WARN:
             self.check_sanity()
         direct_spin1.FCISolver.dump_flags(self, verbose)
-        #logger.info(self, 'Number of electrons = %s', nelec)
-        #logger.info(self, 'Number of orbitals = %3d', norb)
-        #logger.info(self, 'Number of roots = %3d', nroots)
-        #logger.info(self, 'Number of dets = %3d', nroots)
+        #logger.info(self, 'Number of electrons = %s', self.nelec)
+        #logger.info(self, 'Number of orbitals = %3d', self.norb)
+        logger.info(self, 'CI molde to be solved of orbitals = %s', self.model)
+        logger.info(self, 'Add noise to CI vector = %s', self.noise)
         return self
 
     # define absorb_h1e for compatibility to other FCI solver
@@ -310,9 +330,19 @@ class CI(direct_spin1.FCISolver):
             self._strs = civec._strs
         else:
             assert(civec.size == len(self._strs))
-            civec = as_SCIvector(civec, self._strs)
+            civec = cistring.as_SCIvector(civec, self._strs)
 
-        return make_rdm12s(civec, norb, nelec)
+        return rdm.make_rdm12s(civec, norb, nelec)
+
+    def make_rdm12(self, civec, norb, nelec):
+
+        if hasattr(civec, '_strs'):
+            self._strs = civec._strs
+        else:
+            assert(civec.size == len(self._strs))
+            civec = cistring.as_SCIvector(civec, self._strs)
+
+        return rdm.make_rdm12(civec, norb, nelec)
 
     kernel = kernel
 
@@ -321,11 +351,13 @@ CI = CI
 if __name__ == '__main__':
     from pyscf import gto, scf, fci, mcscf
     mol = gto.Mole()
-    mol.basis = 'aug-cc-pvdz'
+    mol.basis = 'sto-6g'
     mol.atom = '''
-Li 0.0000  0.0000  0.0000
-Li 0.0000  0.0000  2.6500
+N 0.0000  0.0000  0.0000
+N 0.0000  0.0000  1.1000
     '''
+#Li 0.0000  0.0000  0.0000
+#Li 0.0000  0.0000  2.6500
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
@@ -352,7 +384,7 @@ Li 0.0000  0.0000  2.6500
     #norb = cas_idx.size
 
     roots = 2
-    ncore = 2
+    ncore = 0
     norb = mf.mo_coeff.shape[0] - ncore
     nelec = mol.nelectron - ncore*2
     nelec = (nelec/2,nelec/2)
@@ -361,12 +393,18 @@ Li 0.0000  0.0000  2.6500
     h2e = mc.get_h2eff()
 
     mc = CI()
-    #mc = fix_spin(mc, ss=0, shif=0.8)  # ss = S^2
+    mc = fix_spin(mc, ss=0, shif=0.8)
     mc.nroots = roots
     mc.verbose = 4
     e, civec = mc.kernel(h1e, h2e, norb, nelec, ecore=e_core, verbose=5)
     logger.info(mc,"* CI Energy : %s" % e)    
-    #s0 = mc.spin_square(civec[0], norb, nelec)
+    for i in range(roots):
+        norm = numpy.einsum('i,i->', civec[i][:], civec[i][:])
+        s = mc.spin_square(civec[i], norb, nelec)
+        logger.info(mc,"* Norm info for state %d : %s" % (i,norm))    
+        logger.info(mc,"* Spin info for state %d : %s" % (i,s))    
+    rdm1, rdm2 = mc.make_rdm12(civec[0], norb, nelec) 
+    #print rdm1
 
     #t_start = time.time()
     #cisolver = fci.FCI(mol)
@@ -384,7 +422,9 @@ Li 0.0000  0.0000  2.6500
     mycas.fcisolver.nroots = roots
     mycas.verbose = 0
     mycas.fix_spin_(ss=0,shift=0.2)
-    e = mycas.kernel()[0]
+    mycas.kernel()[0]
+    rdm1, rdm2 = mc.make_rdm12(mycas.ci[0], norb, nelec) 
+    #print rdm1
     t_current = time.time() - t_start
     logger.info(mc,"* FCI Energy : %s" % e)    
     logger.info(mc,"* Timing for solving the eigenvalue problem: %10.3f", t_current)
