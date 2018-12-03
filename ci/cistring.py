@@ -150,7 +150,7 @@ You see this error message because we only support up to 64 orbitals''')
     stringb = gen_strings4orblist(orb_list, nelecb)
     ndets = stringa.shape[0]*stringb.shape[0]
     dets = numpy.zeros((ndets,2), dtype=numpy.uint64)
-    print ndets
+    #print ndets
     k = 0
     for i in range(stringa.shape[0]):
         for j in range(stringb.shape[0]):

@@ -120,6 +120,7 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
     eri = ao2mo.restore(1, eri, norb)
     eri = eri.ravel()
 
+    logger.info(myci, 'CI in the selected space')
     # Initial guess
     if ci0 is None:
         t_start = time.time()
@@ -138,7 +139,6 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
     precond = lambda x, e, *args: x/(hdiag-e+myci.level_shift)
 
     ci_strs = ci0[0]._strs
-    logger.info(myci, 'CI in the selected space')
     logger.info(myci, 'Number of CI configurations: %d', ci_strs.shape[0])
     t_start = time.time()
     hdiag = myci.make_hdiag(h1e, eri, ci_strs, norb, nelec)
@@ -147,14 +147,14 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
 
     t_start = time.time()
     with lib.with_omp_threads(myci.threads):
-        e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-                        max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-                        max_memory=max_memory, verbose=verbose, **kwargs)
-        
         #e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
-        #               max_cycle=max_cycle, max_space=max_space, nroots=nroots,
-        #               max_memory=max_memory, verbose=verbose, follow_state=True,
-        #               tol_residual=tol_residual, **kwargs)
+        #                max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+        #                max_memory=max_memory, verbose=verbose, **kwargs)
+        #
+        e, c = myci.eig(hop, ci0, precond, tol=tol, lindep=lindep,
+                       max_cycle=max_cycle, max_space=max_space, nroots=nroots,
+                       max_memory=max_memory, verbose=verbose, follow_state=True,
+                       tol_residual=tol_residual, **kwargs)
     t_current = time.time() - t_start
     logger.info(myci, 'Timing for solving the eigenvalue problem: %10.3f', t_current)
     if not isinstance(c, (tuple, list)):
@@ -238,7 +238,7 @@ def fix_spin(myci, shift=.2, ss=None, **kwargs):
         ci2 *= shift
         ci1 += ci2
 
-        return as_SCIvector_if_not(ci1, strs)
+        return cistring.as_SCIvector_if_not(ci1, strs)
 
     myci.contract_2e = contract_2e
     return myci
@@ -313,9 +313,9 @@ class CI(direct_spin1.FCISolver):
 CI = CI
 
 if __name__ == '__main__':
-    from pyscf import gto, scf, fci
+    from pyscf import gto, scf, fci, mcscf
     mol = gto.Mole()
-    mol.basis = 'sto-6g'
+    mol.basis = 'aug-cc-pvdz'
     mol.atom = '''
 Li 0.0000  0.0000  0.0000
 Li 0.0000  0.0000  2.6500
@@ -323,40 +323,65 @@ Li 0.0000  0.0000  2.6500
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
-    mol.symmetry = 0
+    mol.symmetry = 1
     mol.build()
 
     mf = scf.RHF(mol)
     mf.kernel()
 
-    ncore = 0
-    e_core = mol.energy_nuc()
-    core_idx = numpy.arange(ncore)
-    ncore = core_idx.size
-    cas_idx = numpy.arange(ncore, numpy.shape(mf.mo_coeff)[1])
-    hcore = mf.get_hcore()
-    core_dm = numpy.dot(mf.mo_coeff[:, core_idx], mf.mo_coeff[:, core_idx].T)*2.0
-    e_core += numpy.einsum('ij,ji', core_dm, hcore)
-    corevhf = scf.hf.get_veff(mol, core_dm)
-    e_core += numpy.einsum('ij,ji', core_dm, corevhf)*0.5
-    h1e = reduce(numpy.dot, (mf.mo_coeff[:, cas_idx].T, hcore + corevhf, mf.mo_coeff[:, cas_idx]))
-    h2e = ao2mo.full(mf._eri, mf.mo_coeff[:, cas_idx])
-    nelec = mol.nelectron - ncore*2
+    #ncore = 0
+    #e_core = mol.energy_nuc()
+    #core_idx = numpy.arange(ncore)
+    #ncore = core_idx.size
+    #cas_idx = numpy.arange(ncore, numpy.shape(mf.mo_coeff)[1])
+    #hcore = mf.get_hcore()
+    #core_dm = numpy.dot(mf.mo_coeff[:, core_idx], mf.mo_coeff[:, core_idx].T)*2.0
+    #e_core += numpy.einsum('ij,ji', core_dm, hcore)
+    #corevhf = scf.hf.get_veff(mol, core_dm)
+    #e_core += numpy.einsum('ij,ji', core_dm, corevhf)*0.5
+    #h1e = reduce(numpy.dot, (mf.mo_coeff[:, cas_idx].T, hcore + corevhf, mf.mo_coeff[:, cas_idx]))
+    #h2e = ao2mo.full(mf._eri, mf.mo_coeff[:, cas_idx])
+    #nelec = mol.nelectron - ncore*2
     #nelec = (3,3)
-    norb = cas_idx.size
+    #norb = cas_idx.size
+
+    ncore = 2
+    norb = mf.mo_coeff.shape[0] - ncore
+    nelec = mol.nelectron - ncore*2
+    nelec = (nelec/2,nelec/2)
+    roots = 2
+    mc = mcscf.CASCI(mf, norb, nelec)
+    h1e, e_core = mc.get_h1eff()
+    h2e = mc.get_h2eff()
 
     mc = CI()
-    mc.nroots = 2
+    mc = fix_spin(mc, ss=0, shif=0.8)  # ss = S^2
+    mc.nroots = roots
     mc.verbose = 4
-    e = mc.kernel(h1e, h2e, norb, nelec, ecore=e_core, verbose=5)[0]
+    e, civec = mc.kernel(h1e, h2e, norb, nelec, ecore=e_core, verbose=5)
     logger.info(mc,"* CI Energy : %s" % e)    
+    s0 = mc.spin_square(civec[0], norb, nelec)
+    s1 = mc.spin_square(civec[1], norb, nelec)
+    print s0, s1
+
+    #t_start = time.time()
+    #cisolver = fci.FCI(mol)
+    #cisolver = fci.direct_spin1_symm.FCI(mol)
+    #cisolver = fci.direct_spin1.FCI(mol)
+    #cisolver.verbose = 4
+    #cisolver.nroots = 8
+    #e = cisolver.kernel(h1e, h2e, norb, nelec, ecore=e_core)[0]
+    #t_current = time.time() - t_start
+    #logger.info(cisolver,"* FCI Energy : %s" % e)    
+    #logger.info(cisolver,"* Timing for solving the eigenvalue problem: %10.3f", t_current)
 
     t_start = time.time()
-    cisolver = fci.FCI(mol)
-    #cisolver = fci.direct_spin1_symm.FCI(mol)
-    cisolver.verbose = 4
-    cisolver.nroots = 2
-    e = cisolver.kernel(h1e, h2e, norb, nelec, ecore=e_core)[0]
+    mycas = mcscf.CASCI(mf, norb, nelec)
+    mycas.fcisolver.nroots = roots
+    mycas.verbose = 0
+    mycas.fix_spin_(ss=0,shift=0.2)
+    e = mycas.kernel()[0]
     t_current = time.time() - t_start
-    logger.info(cisolver,"* FCI Energy : %s" % e)    
-    logger.info(cisolver,"* Timing for solving the eigenvalue problem: %10.3f", t_current)
+    logger.info(mc,"* FCI Energy : %s" % e)    
+    logger.info(mc,"* Timing for solving the eigenvalue problem: %10.3f", t_current)
+
