@@ -121,7 +121,7 @@ def kernel(myci, h1e, eri, norb, nelec, ci0=None,
     if max_memory is None: max_memory = myci.max_memory
     if nroots is None: nroots = myci.nroots
     if verbose is None: verbose = logger.Logger(myci.stdout, myci.verbose)
-    tol_residual = getattr(fci, 'conv_tol_residual', None)
+    tol_residual = None #getattr(fci, 'conv_tol_residual', None)
     myci.dump_flags()
 
     nelec = direct_spin1._unpack_nelec(nelec, myci.spin)
@@ -384,7 +384,7 @@ N 0.0000  0.0000  1.1000
     #norb = cas_idx.size
 
     roots = 2
-    ncore = 0
+    ncore = 2
     norb = mf.mo_coeff.shape[0] - ncore
     nelec = mol.nelectron - ncore*2
     nelec = (nelec/2,nelec/2)
