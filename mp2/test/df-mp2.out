@@ -1,0 +1,179 @@
+#INFO: **** input file is /home/jluis/src/git/scripts/mp2/test/df-mp2.py ****
+#!/usr/bin/env python
+
+import numpy
+from pyscf import gto, scf, lib, ao2mo
+from pyscf.tools import molden
+einsum = lib.einsum
+
+name = 'ch4_df'
+
+mol = gto.Mole()
+mol.basis = 'aug-cc-pvtz'
+mol.atom = '''
+C  0.0000  0.0000  0.0000
+H  0.6276  0.6276  0.6276
+H  0.6276 -0.6276 -0.6276
+H -0.6276  0.6276 -0.6276
+H -0.6276 -0.6276  0.6276
+'''
+mol.charge = 0
+mol.spin = 0
+mol.symmetry = 1
+mol.verbose = 4
+mol.build()
+
+mf = scf.RHF(mol)
+mf = scf.density_fit(mf)
+mf.auxbasis = 'aug-cc-pvtz-jkfit'
+ehf = mf.kernel()
+
+ncore = 1
+nao, nmo = mf.mo_coeff.shape
+nocc = mol.nelectron//2 - ncore
+nvir = nmo - nocc - ncore
+mo_core = mf.mo_coeff[:,:ncore]
+mo_occ = mf.mo_coeff[:,ncore:ncore+nocc]
+mo_vir = mf.mo_coeff[:,ncore+nocc:]
+co = mo_occ
+cv = mo_vir
+eo = mf.mo_energy[ncore:ncore+nocc]
+ev = mf.mo_energy[ncore+nocc:]
+lib.logger.info(mf,"* Core orbitals: %d" % ncore)
+lib.logger.info(mf,"* Virtual orbitals: %d" % (len(ev)))
+
+naux = mf._cderi.shape[0]
+dferi = numpy.empty((naux,nao,nao))
+for i in range(naux):
+    dferi[i] = lib.unpack_tril(mf._cderi[i])
+eri_mo = einsum('rj,Qrs->Qjs', co, dferi)
+eri_mo = einsum('sb,Qjs->Qjb', cv, eri_mo)
+
+vv_denom = -ev.reshape(-1,1)-ev
+t2 = numpy.zeros((nocc,nvir,nocc,nvir))
+for i in range(nocc):
+    eps_i = eo[i]
+    i_Qv = eri_mo[:, i, :].copy()
+    for j in range(nocc):
+        eps_j = eo[j]
+        j_Qv = eri_mo[:, j, :].copy()
+        viajb = einsum('Qa,Qb->ab', i_Qv, j_Qv)
+        vibja = einsum('Qb,Qa->ab', i_Qv, j_Qv)
+        div = 1.0/(eps_i + eps_j + vv_denom)
+        t2[i,:,j,:] += 2.0*einsum('ab,ab->ab', viajb, div) 
+        t2[i,:,j,:] -= 1.0*einsum('ab,ab->ab', vibja, div) 
+
+e_mp2 = einsum('iajb,Qia->Qjb', t2, eri_mo)
+e_mp2 = numpy.einsum('Qjb,Qjb->', e_mp2, eri_mo, optimize=True)
+lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
+lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
+
+den_file = name + '.den'
+fspt = open(den_file,'w')
+fspt.write('MP2\n')
+fspt.write('1-RDM:\n')
+occup = 2.0
+norb = mol.nelectron//2
+for i in range(norb):
+    fspt.write('%i %i %.10f\n' % ((i+1), (i+1), occup))
+fspt.write('t2_iajb:\n')
+for i in range(nocc):
+    for j in range(nvir):
+        for k in range(nocc):
+            for l in range(nvir):
+                if (abs(t2[i,j,k,l]) > 1e-8):
+                        fspt.write('%i %i %i %i %.10f\n' % ((i+1+ncore), \
+                        (j+1+nocc+ncore), (k+1+ncore), (l+1+nocc+ncore), \
+                        t2[i,j,k,l]*2.0))
+fspt.close()                    
+    
+with open(name+'.mol', 'w') as f2:
+    molden.header(mol, f2)
+    molden.orbital_coeff(mol, f2, mf.mo_coeff, occ=mf.mo_occ)
+
+#INFO: ******************** input file end ********************
+
+
+System: ('Linux', 'silicio', '3.16.0-4-amd64', '#1 SMP Debian 3.16.51-3 (2017-12-13)', 'x86_64', '')  Threads 12
+Python 2.7.15 (default, Oct 25 2018, 01:35:55) 
+[GCC 8.2.0]
+numpy 1.15.3  scipy 1.1.0
+Date: Fri Dec  7 19:07:56 2018
+PySCF version 1.6b
+PySCF path  /home/jluis/src/pyscf/dev/pyscf
+GIT ORIG_HEAD 45f68f7c1864ba6705547042f79d02f17d6d91ee
+GIT HEAD      ref: refs/heads/dev
+GIT dev branch  45f68f7c1864ba6705547042f79d02f17d6d91ee
+
+[ENV] PYSCF_TMPDIR /scratch-ssd/jluis
+[CONFIG] conf_file None
+[INPUT] verbose = 4
+[INPUT] num. atoms = 5
+[INPUT] num. electrons = 10
+[INPUT] charge = 0
+[INPUT] spin (= nelec alpha-beta = 2S) = 0
+[INPUT] symmetry 1 subgroup None
+[INPUT] Mole.unit = angstrom
+[INPUT]  1 C      0.000000000000   0.000000000000   0.000000000000 AA    0.000000000000   0.000000000000   0.000000000000 Bohr
+[INPUT]  2 H      0.627600000000   0.627600000000   0.627600000000 AA    1.185992115777   1.185992115777   1.185992115777 Bohr
+[INPUT]  3 H      0.627600000000  -0.627600000000  -0.627600000000 AA    1.185992115777  -1.185992115777  -1.185992115777 Bohr
+[INPUT]  4 H     -0.627600000000   0.627600000000  -0.627600000000 AA   -1.185992115777   1.185992115777  -1.185992115777 Bohr
+[INPUT]  5 H     -0.627600000000  -0.627600000000   0.627600000000 AA   -1.185992115777  -1.185992115777   1.185992115777 Bohr
+
+nuclear repulsion = 13.4720345873821
+point group symmetry = Td, use subgroup D2
+num. orbitals of irrep A = 36
+num. orbitals of irrep B1 = 34
+num. orbitals of irrep B2 = 34
+num. orbitals of irrep B3 = 34
+number of shells = 49
+number of NR pGTOs = 158
+number of NR cGTOs = 138
+basis = aug-cc-pvtz
+ecp = {}
+CPU time:         0.23
+
+
+******** <class 'pyscf.df.df_jk.DFHF'> ********
+method = DFHF-SymAdaptedRHF-RHF
+initial guess = minao
+damping factor = 0
+level shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+DIIS start cycle = 1
+DIIS space = 8
+SCF tol = 1e-09
+SCF gradient tol = None
+max. SCF cycles = 50
+direct_scf = False
+chkfile to save SCF result = /scratch-ssd/jluis/tmp_feu8I
+max_memory 60000 MB (current use 67 MB)
+Freeze 0 electrons in irreps []
+    10 free electrons in irreps A B1 B2 B3
+Set gradient conv threshold to 3.16228e-05
+******** <class 'pyscf.df.df.DF'> ********
+auxbasis = None
+max_memory = 60000
+_cderi_to_save = /scratch-ssd/jluis/tmpxy_fAo
+init E= -40.0610425387277
+HOMO (B1) = -0.501966018992381  LUMO (A) = 0.0218455901010336
+cycle= 1 E= -40.2045950196473  delta_E= -0.144  |g|= 0.177  |ddm|= 1.35
+HOMO (B1) = -0.534830430827343  LUMO (A) = 0.0307027185651426
+cycle= 2 E= -40.212788926552  delta_E= -0.00819  |g|= 0.0495  |ddm|= 0.163
+HOMO (B3) = -0.552121441015281  LUMO (A) = 0.0305730365064985
+cycle= 3 E= -40.2135286043008  delta_E= -0.00074  |g|= 0.0187  |ddm|= 0.0409
+HOMO (B1) = -0.545013840946933  LUMO (A) = 0.0308395506936041
+cycle= 4 E= -40.2136362402862  delta_E= -0.000108  |g|= 0.00177  |ddm|= 0.014
+HOMO (B3) = -0.545206619496253  LUMO (A) = 0.0308462202592942
+cycle= 5 E= -40.2136382611159  delta_E= -2.02e-06  |g|= 0.000251  |ddm|= 0.00384
+HOMO (B2) = -0.545262183184979  LUMO (A) = 0.0308438723722151
+cycle= 6 E= -40.2136382884668  delta_E= -2.74e-08  |g|= 1.7e-05  |ddm|= 0.000499
+HOMO (B1) = -0.545263779074789  LUMO (A) = 0.0308434719327027
+cycle= 7 E= -40.2136382885713  delta_E= -1.05e-10  |g|= 9.51e-07  |ddm|= 4.47e-05
+HOMO (B1) = -0.545263978941499  LUMO (A) = 0.0308434674051517
+Extra cycle  E= -40.2136382885716  delta_E= -2.84e-13  |g|= 1.92e-07  |ddm|= 7.7e-06
+converged SCF energy = -40.2136382885716
+* Core orbitals: 1
+* Virtual orbitals: 133
+!*** E(MP2):  -0.20075398
+!**** E(HF+MP2): -40.41439227
