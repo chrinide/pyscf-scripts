@@ -253,6 +253,7 @@ class det(lib.StreamObject):
         print c[:,0]
         print e[1]+self.e_core
         print c[:,1]
+        print e+self.e_core
         return self
 
     def kernel(self):
@@ -283,7 +284,7 @@ class det(lib.StreamObject):
 if __name__ == '__main__':
     from pyscf import gto, scf, mcscf, tdscf
     mol = gto.Mole()
-    mol.basis = 'sto-3g'
+    mol.basis = 'cc-pvdz'
     mol.atom = '''
     H 0.0000  0.0000  0.0000
     H 0.0000  0.0000  0.7500
@@ -301,7 +302,7 @@ if __name__ == '__main__':
     #ex = td.kernel()[0]
     #print ex
 
-    norb = 2
+    norb = 10
     nelec = (1,1)
     dets = det(mf,nelec,norb)
     dets.kernel()

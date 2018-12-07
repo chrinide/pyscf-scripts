@@ -32,7 +32,7 @@ symmetry c1
 """)
 
 
-psi4.set_options({'basis': 'sto-3g',
+psi4.set_options({'basis': 'cc-pvdz',
                   'scf_type': 'pk',
                   'e_convergence': 1e-8,
                   'd_convergence': 1e-8})
