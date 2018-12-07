@@ -159,6 +159,29 @@ You see this error message because we only support up to 64 orbitals''')
             k += 1
     return dets
 
+def tn_strs(norb, nelec, n):
+    '''Generate strings for Tn amplitudes.  Eg n=1 (T1) has nvir*nocc strings,
+    n=2 (T2) has nvir*(nvir-1)/2 * nocc*(nocc-1)/2 strings.
+    '''
+    if nelec < n or norb-nelec < n:
+        return numpy.zeros(0, dtype=int)
+    occs_allow = numpy.asarray(gen_strings4orblist(range(nelec), n)[::-1])
+    virs_allow = numpy.asarray(gen_strings4orblist(range(nelec,norb), n))
+    hf_str = int('1'*nelec, 2)
+    tns = (hf_str | virs_allow.reshape(-1,1)) ^ occs_allow
+    return tns.ravel()
+
+def t1_strs(norb, nelec):
+    '''CIS dets'''
+    nocc = nelec
+    hf_str = int('1'*nocc, 2)
+    strs = []
+    for a in range(nocc, norb):
+        for i in reversed(range(nocc)):
+            str1 = hf_str ^ (1 << i) | (1 << a)
+            strs.append(str1)
+    return numpy.asarray(strs)
+
 if __name__ == '__main__':
     numpy.random.seed(3)
     nelec = (1,1)
@@ -187,4 +210,48 @@ if __name__ == '__main__':
     print "HF String", bin(strs[0,0]), bin(strs[0,1])
     for i in range(ndets):
         print "Det",i,"alpha",bin(strs[i,0]),"beta",bin(strs[i,1])
+    
+    print "T1"
+    nelec = (5,5)
+    norb = 14
+    detsa = tn_strs(norb, nelec[0], 1)
+    detsb = tn_strs(norb, nelec[1], 1)
+    ndets = detsa.shape[0]*detsb.shape[0]
+    dets = numpy.zeros((ndets,2), dtype=numpy.uint64)
+    k = 0
+    for i in range(detsa.shape[0]):
+        for j in range(detsb.shape[0]):
+            dets[k,0] = detsa[i]
+            dets[k,1] = detsb[j]
+            k += 1
+    ci1 = [as_SCIvector(numpy.zeros(ndets), dets)]
+    ci1[0][0] = 1.0
+    print "Number of roots", len(ci1) 
+    print "0 root coeffs", ci1[0]
+    strs = ci1[0]._strs
+    print "Number of strings", strs.shape
+    for i in range(ndets):
+        print "Det",i,"alpha",bin(strs[i,0]),"beta",bin(strs[i,1])
+    print "T2"
+    detsa = tn_strs(norb, nelec[0], 2)
+    detsb = tn_strs(norb, nelec[1], 2)
+    ndets = detsa.shape[0]*detsb.shape[0]
+    dets = numpy.zeros((ndets,2), dtype=numpy.uint64)
+    k = 0
+    for i in range(detsa.shape[0]):
+        for j in range(detsb.shape[0]):
+            dets[k,0] = detsa[i]
+            dets[k,1] = detsb[j]
+            k += 1
+    ci1 = [as_SCIvector(numpy.zeros(ndets), dets)]
+    ci1[0][0] = 1.0
+    print "Number of roots", len(ci1) 
+    print "0 root coeffs", ci1[0]
+    strs = ci1[0]._strs
+    print "Number of strings", strs.shape
+    for i in range(ndets):
+        print "Det",i,"alpha",bin(strs[i,0]),"beta",bin(strs[i,1])
 
+    dets = t1_strs(norb, nelec[0])
+    for i in range(dets.shape[0]):
+        print "Det",i,"det",bin(dets[i])

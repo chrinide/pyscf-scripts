@@ -14,7 +14,6 @@ mf = scf.RHF(mol)
 mf = solvent.ddCOSMO(mf)
 mf.with_solvent.lebedev_order = 21
 mf.with_solvent.lmax = 10 
-mf.with_solvent.eps = 78
 mf.with_solvent.max_cycle = 50
 mf.with_solvent.conv_tol = 1e-6
 mf.with_solvent.grids.radi_method = dft.mura_knowles

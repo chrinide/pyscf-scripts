@@ -383,8 +383,8 @@ N 0.0000  0.0000  1.1000
     #nelec = (3,3)
     #norb = cas_idx.size
 
-    roots = 2
-    ncore = 2
+    roots = 1
+    ncore = 0
     norb = mf.mo_coeff.shape[0] - ncore
     nelec = mol.nelectron - ncore*2
     nelec = (nelec/2,nelec/2)
@@ -403,7 +403,7 @@ N 0.0000  0.0000  1.1000
         s = mc.spin_square(civec[i], norb, nelec)
         logger.info(mc,"* Norm info for state %d : %s" % (i,norm))    
         logger.info(mc,"* Spin info for state %d : %s" % (i,s))    
-    rdm1, rdm2 = mc.make_rdm12(civec[0], norb, nelec) 
+    #rdm1, rdm2 = mc.make_rdm12(civec[0], norb, nelec) 
     #print rdm1
 
     #t_start = time.time()
@@ -423,7 +423,7 @@ N 0.0000  0.0000  1.1000
     mycas.verbose = 0
     mycas.fix_spin_(ss=0,shift=0.2)
     mycas.kernel()[0]
-    rdm1, rdm2 = mc.make_rdm12(mycas.ci[0], norb, nelec) 
+    #rdm1, rdm2 = mc.make_rdm12(mycas.ci[0], norb, nelec) 
     #print rdm1
     t_current = time.time() - t_start
     logger.info(mc,"* FCI Energy : %s" % e)    

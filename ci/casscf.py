@@ -30,7 +30,7 @@ class AsFCISolver(lib.StreamObject):
         self.myci = ci.CI(self.mol)
         self.myci = ci.fix_spin(self.myci, ss=self.ss, shift=self.sshift)
         self.myci.nroots = self.nroots
-        self.myci.verbose = 0
+        #self.myci.verbose = 0
         e, civec = self.myci.kernel(h1, h2, norb, nelec, verbose=0)
         return e[0]+ecore, civec[0]
 
@@ -64,7 +64,7 @@ ncore = 2
 aolst1 = ['N 2s']
 aolst2 = ['N 2p']
 aolst = aolst1 + aolst2
-ncas, nelecas, mo = avas.kernel(mf, aolst, threshold_occ=0.1, threshold_vir=0.1, minao='minao', ncore=ncore)
+ncas, nelecas, mo = avas.kernel(mf, aolst, threshold_occ=0.1, threshold_vir=1e-2, minao='minao', ncore=ncore)
 
 mc = mcscf.CASSCF(mf, ncas, nelecas)
 mc.fcisolver = AsFCISolver(mol)
