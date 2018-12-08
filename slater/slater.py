@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy
+import math
 from itertools import combinations
 
 from pyscf import scf, lib, ao2mo
@@ -39,6 +40,12 @@ def str_diff(string0, string1):
     des_string0.extend([x for x in find1(df & string0)])
     cre_string0.extend([x for x in find1(df & string1)])
     return des_string0, cre_string0    
+
+def num_strings(n, m):
+    if m < 0 or m > n:
+        return 0
+    else:
+        return math.factorial(n) // (math.factorial(n-m)*math.factorial(m))
 
 def cre_des_sign(p, q, string0):
     if p == q:
@@ -96,6 +103,79 @@ def gen_cis(self):
             k += 1
 
     return self
+
+# TODO: recheck the dets still experimental
+def gen_cisd(self):
+    neleca = self.nelec[0]
+    nocca = self.nelec[0]
+    nvira = self.norb - self.nelec[0]
+    nelecb = self.nelec[1]
+    noccb = self.nelec[1]
+    nvirb = self.norb - self.nelec[1]
+    hf_stra = int('1'*neleca, 2)
+    hf_strb = int('1'*nelecb, 2)
+
+    ndet_s = (nocca*nvira)+(noccb+nvirb)
+    ndet_d = num_strings(nocca,2) * num_strings(nvira, 2) * \
+             num_strings(noccb,2) * num_strings(nvirb, 2) + nocca*noccb * nvira*nvirb
+    self.ndets = ndet_s + ndet_d
+
+    logger.info(self, 'Number of determinants: %s', self.ndets)
+    self.strs = numpy.empty((self.ndets,2), dtype=numpy.uint64)
+    self.strs[0,0] = hf_stra
+    self.strs[0,1] = hf_strb
+
+    kk = 1
+    alphao, alphau = str2orblst(self.strs[0,0], self.norb)
+    betao, betau = str2orblst(self.strs[0,1], self.norb)
+
+    for i in alphao:
+        for j in alphau:
+            stra = rmorb(self.strs[0,0], i)
+            stra = addorb(stra, j)
+            self.strs[kk,0] = stra
+            self.strs[kk,1] = hf_strb
+            kk += 1
+
+    for i in betao:
+        for j in betau:
+            strb = rmorb(self.strs[0,1], i)
+            strb = addorb(strb, j)
+            self.strs[kk,0] = hf_stra
+            self.strs[kk,1] = strb
+            kk += 1
+
+    for i in alphao:
+        for j in alphau:
+            for k in betao:
+                for l in betau:
+                    stra = rmorb(self.strs[0,0], i)
+                    stra = addorb(stra, j)
+                    strb = rmorb(self.strs[0,1], k)
+                    strb = addorb(strb, l)
+                    self.strs[kk,0] = stra
+                    self.strs[kk,1] = strb
+                    kk += 1
+
+    for i1, i2 in combinations(alphao, 2):
+        for j1, j2 in combinations(alphau, 2):
+            stra = rmorb(self.strs[0,0], i1)
+            stra = addorb(stra, i2)
+            stra = rmorb(stra, j1)
+            stra = addorb(stra, j2)
+            self.strs[kk,0] = stra
+            self.strs[kk,1] = hf_strb 
+            kk += 1
+
+    for k1, k2 in combinations(betao, 2):
+        for l1, l2 in combinations(betau, 2):
+            strb = rmorb(self.strs[0,1], k1)
+            strb = addorb(strb, k2)
+            strb = rmorb(strb, l1)
+            strb = addorb(strb, l2)
+            self.strs[kk,0] = hf_strb
+            self.strs[kk,1] = strb 
+            kk += 1
 
 def make_hdiag(self,h):
     diagj = numpy.einsum('iijj->ij', self.h2e)
@@ -198,8 +278,8 @@ def make_hoffdiag(self,h):
                     h[ip,jp] = 1*sign * v
                     h[jp,ip] = h[ip,jp]
     #print self.h1e
-    h[abs(h) < 1e-12] = 0
-    print h                    
+    #h[abs(h) < 1e-12] = 0
+    #print h                    
     return h
     
 class det(lib.StreamObject):
@@ -235,10 +315,12 @@ class det(lib.StreamObject):
     def gen_strs(self):
         if (self.model == 'cis'):
             gen_cis(self)
+        elif (self.model == 'cisd'):
+            gen_cisd(self)
         else:
             raise RuntimeError('''CIS only available at this moment''')
-        eri_size = (self.norb**4)*128e-9
-        ham_size = (self.ndets+self.ndets**2)*128e-9
+        eri_size = (self.norb**4)*8e-9
+        ham_size = (self.ndets+self.ndets**2)*8e-9
         tot_size = eri_size + 2.0*ham_size
         logger.info(self, 'Estimated memoryi GB: %s', tot_size)
         print_dets(self)
@@ -250,10 +332,10 @@ class det(lib.StreamObject):
         h= make_hoffdiag(self, h)
         e,c = numpy.linalg.eigh(h)
         print e[0]+self.e_core
-        print c[:,0]
-        print e[1]+self.e_core
-        print c[:,1]
-        print e+self.e_core
+        #print c[:,0]
+        #print e[1]+self.e_core
+        #print c[:,1]
+        #print e+self.e_core
         return self
 
     def kernel(self):
@@ -305,6 +387,7 @@ if __name__ == '__main__':
     norb = 10
     nelec = (1,1)
     dets = det(mf,nelec,norb)
+    dets.model = 'cisd'
     dets.kernel()
 
     #mc = mcscf.CASCI(mf,2,2)

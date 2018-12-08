@@ -28,13 +28,12 @@ psi4.core.set_output_file('output.dat', False)
 numpy_memory = 2
 
 mol = psi4.geometry("""
-O
-H 1 1.1
-H 1 1.1 2 104
+H
+H 1 0.75
 symmetry c1
 """)
 
-psi4.set_options({'basis': 'sto-3g', 'scf_type': 'pk', 'e_convergence': 1e-8, 'd_convergence': 1e-8})
+psi4.set_options({'basis': 'cc-pvdz', 'scf_type': 'pk', 'e_convergence': 1e-8, 'd_convergence': 1e-8})
 
 print('\nStarting SCF and integral build...')
 t = time.time()
