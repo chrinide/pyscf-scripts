@@ -26,12 +26,14 @@ def orblst2str(lst):
     return string
 
 def addorb(string, idx):
-    string |= numpy.uint64(1<<idx)
-    return string
+    string0 = string
+    string0 |= numpy.uint64(1<<idx)
+    return string0
 
 def rmorb(string, idx):
-    string &= ~numpy.uint64((1<<idx))
-    return string
+    string0 = string
+    string0 &= ~numpy.uint64((1<<idx))
+    return string0
 
 def str_diff(string0, string1):
     des_string0 = []

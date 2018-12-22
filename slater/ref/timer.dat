@@ -290,3 +290,67 @@ CIWave: s2                          :      0.000u      0.000s      0.000w      2
 CIWave: s3                          :      0.000u      0.000s      0.000w      2 calls
 
 ***********************************************************
+
+Host: silicio
+
+Timers On : Sat Dec  8 02:08:46 2018
+Timers Off: Sat Dec  8 02:08:46 2018
+
+Wall Time:        0.83 seconds
+
+Total PK formation time             :      0.100u      0.000s      0.059w      2 calls
+HF: Form core H                     :      0.000u      0.000s      0.003w      2 calls
+HF: Form S/X                        :      0.000u      0.000s      0.000w      2 calls
+HF: Guess                           :      0.133u      0.000s      0.079w      2 calls
+SAD Guess                           :      0.133u      0.000s      0.077w      2 calls
+HF: Form G                          :      0.000u      0.000s      0.000w     12 calls
+JK: D                               :      0.000u      0.000s      0.000w     12 calls
+JK: USO2AO                          :      0.000u      0.000s      0.000w     12 calls
+JK: JK                              :      0.000u      0.000s      0.000w     12 calls
+PK computes JK                      :      0.000u      0.000s      0.000w     12 calls
+JK: AO2USO                          :      0.000u      0.000s      0.000w     12 calls
+HF: Form F                          :      0.000u      0.000s      0.000w     12 calls
+HF: DIIS                            :      0.017u      0.000s      0.006w     12 calls
+DIISManager::add_entry              :      0.000u      0.000s      0.000w     10 calls
+DIISManager::extrapolate            :      0.000u      0.000s      0.000w      8 calls
+bMatrix setup                       :      0.000u      0.000s      0.000w      8 calls
+bMatrix pseudoinverse               :      0.000u      0.000s      0.000w      8 calls
+New vector                          :      0.000u      0.000s      0.000w      8 calls
+HF: Form C                          :      0.000u      0.000s      0.000w     12 calls
+HF: Form D                          :      0.000u      0.000s      0.000w     12 calls
+CIWave: CIvect write                :      0.000u      0.000s      0.000w     46 calls
+CIWave: CIvect read                 :      0.000u      0.000s      0.000w    209 calls
+CIWave: s2                          :      0.000u      0.000s      0.000w     36 calls
+CIWave: s3                          :      0.000u      0.000s      0.000w     72 calls
+CIWave: s3_mt                       :      0.000u      0.000s      0.000w    120 calls
+CIWave: s1                          :      0.000u      0.000s      0.000w     24 calls
+
+-----------------------------------------------------------
+Total PK formation time             :      0.100u      0.000s      0.059w      2 calls
+HF: Form core H                     :      0.000u      0.000s      0.003w      2 calls
+HF: Form S/X                        :      0.000u      0.000s      0.000w      2 calls
+HF: Guess                           :      0.133u      0.000s      0.079w      2 calls
+| SAD Guess                         :      0.133u      0.000s      0.077w      2 calls
+HF: Form G                          :      0.000u      0.000s      0.000w     12 calls
+| JK: D                             :      0.000u      0.000s      0.000w     12 calls
+| JK: USO2AO                        :      0.000u      0.000s      0.000w     12 calls
+| JK: JK                            :      0.000u      0.000s      0.000w     12 calls
+| | PK computes JK                  :      0.000u      0.000s      0.000w     12 calls
+| JK: AO2USO                        :      0.000u      0.000s      0.000w     12 calls
+HF: Form F                          :      0.000u      0.000s      0.000w     12 calls
+HF: DIIS                            :      0.017u      0.000s      0.006w     12 calls
+| DIISManager::add_entry            :      0.000u      0.000s      0.000w     10 calls
+| DIISManager::extrapolate          :      0.000u      0.000s      0.000w      8 calls
+| | bMatrix setup                   :      0.000u      0.000s      0.000w      8 calls
+| | bMatrix pseudoinverse           :      0.000u      0.000s      0.000w      8 calls
+| | New vector                      :      0.000u      0.000s      0.000w      8 calls
+HF: Form C                          :      0.000u      0.000s      0.000w     12 calls
+HF: Form D                          :      0.000u      0.000s      0.000w     12 calls
+CIWave: CIvect write                :      0.000u      0.000s      0.000w     46 calls
+CIWave: CIvect read                 :      0.000u      0.000s      0.000w    209 calls
+CIWave: s2                          :      0.000u      0.000s      0.000w     36 calls
+CIWave: s3                          :      0.000u      0.000s      0.000w     72 calls
+| CIWave: s3_mt                     :      0.000u      0.000s      0.000w    120 calls
+CIWave: s1                          :      0.000u      0.000s      0.000w     24 calls
+
+***********************************************************

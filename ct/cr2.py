@@ -8,33 +8,33 @@ from pyscf.lib import logger
 from pyscf import lib
 einsum = lib.einsum
 
-name = 'ct'
+name = 'cr2'
 
-r = 1.1
+r = 1.68
 mol = gto.Mole()
 mol.verbose = 4
 mol.atom = [
-    ['N', ( 0., 0.    , -r/2 )],
-    ['N', ( 0., 0.    ,  r/2)],]
-mol.basis = 'cc-pvdz'
+    ['Cr', ( 0., 0.    , -r/2 )],
+    ['Cr', ( 0., 0.    ,  r/2)],]
+mol.basis = 'cc-pwcVTZ'
 mol.symmetry = 1
 mol.build()
     
 mf = scf.RHF(mol)
 mf.kernel()
+        
+ncore = {'A1g':5, 'A1u':5}  # Optional. Program will guess if not given
+ncas = {'A1g':2, 'A1u':2,
+        'E1ux':1, 'E1uy':1, 'E1gx':1, 'E1gy':1,
+        'E2ux':1, 'E2uy':1, 'E2gx':1, 'E2gy':1}
 
-pt2 = mp.MP2(mf)
-pt2.frozen = 0
-pt2.kernel()
-
-mo = mf.mo_coeff
-mc = mcscf.CASSCF(mf, 6, 6)
+mc = mcscf.CASSCF(mf, 12, 12)
 mc.max_cycle_macro = 250
 mc.max_cycle_micro = 7
 mc.fcisolver = fci.direct_spin0_symm.FCI()
-mc.fix_spin_(shift=.5, ss=0)
-#emc = mc.mc1step(mo)[0]
-emc = mc.kernel(mo)[0]
+#mc.fix_spin_(shift=.5, ss=0)
+mo = mcscf.sort_mo_by_irrep(mc, mf.mo_coeff, ncas, ncore)
+emc = mc.mc1step(mo)[0]
     
 mo = mc.mo_coeff
 nmo = mo.shape[1]
@@ -79,6 +79,8 @@ tmp3 = einsum('pqrr,p,q,r,r->pq', v2e, alpha, beta, alpha, beta) + \
        einsum('qprr,q,p,r,r->pq', v2e, alpha, beta, alpha, beta)
 h1e_bogo -= tmp3
 wpqrs = einsum('pqsr,p,q,r,s->pqrs', v2e, alpha, alpha, beta, beta)
+
+del(v2e)
 
 # make diagonal and transform to semi-canonical basis
 e1, c1 = scipy.linalg.eigh(h1e_bogo[:ncore,:ncore])
