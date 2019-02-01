@@ -16,7 +16,7 @@ mol.symmetry = 0
 mol.build()
 
 mf = x2c.RHF(mol)
-dm = mf.get_init_guess() + 0.1j
+dm = mf.get_init_guess() + 0.2j
 mf.kernel(dm)
 
 nao, nmo = mf.mo_coeff.shape
@@ -24,20 +24,12 @@ eri_mo = ao2mo.kernel(mol, mf.mo_coeff[:,:nmo], compact=False, intor='int2e_spin
 eri_mo = eri_mo.reshape(nmo,nmo,nmo,nmo)
 h1 = reduce(numpy.dot, (mf.mo_coeff[:,:nmo].conj().T, mf.get_hcore(), mf.mo_coeff[:,:nmo]))
 
-# GVB-PP
-ndets = 4
-h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
-for i in range(ndets):
-    h[i,i] = 2.0*h1[i,i] + eri_mo[i,i,i,i]
-    for j in range(i):
-        h[i,j] = eri_mo[i,j,i,j]
-        h[j,i] = h[i,j]
-
+h = numpy.zeros((2,2), dtype=numpy.complex128)
+h[0,0] = 2.0*h1[0,0]+eri_mo[0,0,0,0]
+h[1,0] = eri_mo[0,2,0,2]
+h[1,1] = 2.0*h1[2,2]+eri_mo[2,2,2,2]
+h[0,1] = eri_mo[2,0,2,0]
 e,c = numpy.linalg.eigh(h)
 e += mf.energy_nuc()
 print('E(GVB-PP) = %s' % e)
-
-#cisolver = fci.FCI(mol, mf.mo_coeff)
-#cisolver.nroots = 10000
-#print('E(FCI) = %s' % cisolver.kernel()[0])
 
