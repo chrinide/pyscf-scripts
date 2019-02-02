@@ -24,12 +24,18 @@ eri_mo = ao2mo.kernel(mol, mf.mo_coeff[:,:nmo], compact=False, intor='int2e_spin
 eri_mo = eri_mo.reshape(nmo,nmo,nmo,nmo)
 h1 = reduce(numpy.dot, (mf.mo_coeff[:,:nmo].conj().T, mf.get_hcore(), mf.mo_coeff[:,:nmo]))
 
-h = numpy.zeros((2,2), dtype=numpy.complex128)
-h[0,0] = 2.0*h1[0,0]+eri_mo[0,0,0,0]
-h[1,0] = eri_mo[0,2,0,2]
-h[1,1] = 2.0*h1[2,2]+eri_mo[2,2,2,2]
-h[0,1] = eri_mo[2,0,2,0]
+# Very simple test emulating kramers symmetry
+dets = [0,2]
+ndets = len(dets)
+h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
+for i in range(ndets):
+    k = dets[i]
+    h[i,i] = 2.0*h1[k,k] + eri_mo[k,k,k,k]
+    for j in range(i):
+        l = dets[j]
+        h[i,j] = eri_mo[k,l,k,l]
+        h[j,i] = h[i,j].conj()
 e,c = numpy.linalg.eigh(h)
 e += mf.energy_nuc()
 print('E(GVB-PP) = %s' % e)
-
+print c
