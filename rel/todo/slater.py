@@ -105,9 +105,8 @@ def gen_cisd(self):
 
     return strs
 
-def make_hdiag(self,h1e,h2e,strs):
+def make_hdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
-    h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
     norb = h1e.shape[0]
     diagj = numpy.einsum('iijj->ij', h2e)
     diagk = numpy.einsum('ijji->ij', h2e)
@@ -184,7 +183,9 @@ if __name__ == '__main__':
     mf.get_hcore(), mf.mo_coeff[:,:nmo]))
 
     strs = gen_cisd(mf)
-    h = make_hdiag(mf,h1e,eri_mo,strs) 
+    ndets = strs.shape[0]
+    h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
+    h = make_hdiag(mf,h1e,eri_mo,h,strs) 
     h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
     dump_tri(mf.stdout,h,ncol=15,digits=4)
 
