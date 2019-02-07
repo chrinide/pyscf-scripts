@@ -113,10 +113,10 @@ def make_hdiag(self,h1e,h2e,strs):
     diagk = numpy.einsum('ijji->ij', h2e)
     for i in range(ndets):
         stra = strs[i]
-        occ = str2orblst(stra, norb)[0]
-        e1 = h1e[occ,occ].sum()
-        e2 = diagj[occ][:,occ].sum() \
-           - diagk[occ][:,occ].sum()
+        occs = str2orblst(stra, norb)[0]
+        e1 = h1e[occs,occs].sum()
+        e2 = diagj[occs][:,occs].sum() \
+           - diagk[occs][:,occs].sum()
         h[i,i] = e1 + e2*0.5
     return h
 
@@ -131,35 +131,37 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
             if (len(des) == 1):
                 i,a = des[0], cre[0]
                 occs = str2orblst(stri, norb)[0]
-                fai = h1e[a,i]
+                v = h1e[a,i]
                 for k in occs:
-                    fai += h2e[k,k,a,i] - h2e[k,i,a,k]
+                    v += h2e[k,k,a,i] - h2e[k,i,a,k]
                 sign = cre_des_sign(a, i, stri)
-                h[ip,jp] = sign * fai
+                h[ip,jp] = sign * v
                 h[jp,ip] = h[ip,jp].conj()
-                #print bin(stri), bin(strj)
-                #print h[ip,jp]
-            #elif (len(des) == 2):
-            #    i,j = des
-            #    a,b = cre
-            #    if a > j or i > b:
-            #        v = h2e[a,j,b,i] - h2e[a,i,b,j]
-            #        sign = cre_des_sign(b, i, stri)
-            #        sign*= cre_des_sign(a, j, stri)
-            #    else:
-            #        v = h2e[a,i,b,j] - h2e[a,j,b,i]
-            #        sign = cre_des_sign(b, j, stri)
-            #        sign*= cre_des_sign(a, i, stri)
-            #    h[ip,jp] = sign * v
-            #    h[jp,ip] = h[ip,jp].conj()
+            elif (len(des) == 2):
+                i,j = des
+                a,b = cre
+                if a > j or i > b:
+                    v = h2e[a,j,b,i] - h2e[a,i,b,j]
+                    sign = cre_des_sign(b, i, stri)
+                    sign*= cre_des_sign(a, j, stri)
+                else:
+                    v = h2e[a,i,b,j] - h2e[a,j,b,i]
+                    sign = cre_des_sign(b, j, stri)
+                    sign*= cre_des_sign(a, i, stri)
+                #v = h2e[a,i,b,j] - h2e[a,j,b,i]
+                #sign = cre_des_sign(b, j, stri)
+                #sign*= cre_des_sign(a, i, stri)
+                h[ip,jp] = sign * v
+                h[jp,ip] = h[ip,jp].conj()
             else:
                 continue
     return h
 
 if __name__ == '__main__':
     from pyscf import gto, scf, x2c, ao2mo
+    from pyscf.tools.dump_mat import dump_tri
     mol = gto.Mole()
-    mol.basis = 'cc-pvdz'
+    mol.basis = 'sto-6g'
     mol.atom = '''
     H 0.0000  0.0000  0.0000
     H 0.0000  0.0000  0.7500
@@ -167,15 +169,13 @@ if __name__ == '__main__':
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
-    mol.symmetry = 1
+    mol.symmetry = 0
     mol.build()
 
-    mf = x2c.RHF(mol)
+    mf = x2c.UHF(mol)
     mf.kernel()
 
-    strs = gen_cisd(mf)
-    #print_dets(mf,strs)
-
+    e_core = mol.energy_nuc() 
     nao, nmo = mf.mo_coeff.shape
     eri_mo = ao2mo.kernel(mol, mf.mo_coeff[:,:nmo], \
     compact=False, intor='int2e_spinor')
@@ -183,11 +183,15 @@ if __name__ == '__main__':
     h1e = reduce(numpy.dot, (mf.mo_coeff[:,:nmo].conj().T, \
     mf.get_hcore(), mf.mo_coeff[:,:nmo]))
 
-    e_core = mol.energy_nuc() 
+    strs = gen_cisd(mf)
     h = make_hdiag(mf,h1e,eri_mo,strs) 
     h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
-    #print h[0,0] + e_core
-    #print h
+    dump_tri(mf.stdout,h,ncol=15,digits=4)
 
     e,c = numpy.linalg.eigh(h)
-    print e[0]+e_core
+    e += e_core
+    logger.info(mf, 'Ground state energy %s', e[0])
+    logger.info(mf, 'Ground state civec %s', c[:,0])
+    norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
+    logger.info(mf, 'Norm of ground state civec %s', norm)
+
