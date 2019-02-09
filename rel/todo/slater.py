@@ -1,8 +1,17 @@
 #!/usr/bin/env python
 
-import numpy, math
+import numpy, math, sys, signal, os
 from functools import reduce
 from pyscf import scf, lib, ao2mo
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+# For code compatiblity in python-2 and python-3
+if sys.version_info >= (3,):
+    unicode = str
+
+#_loaderpath = os.path.dirname(__file__)
+#libci = numpy.ctypeslib.load_library('libci.so', _loaderpath)
 
 def find1(s):
     return [i for i,x in enumerate(bin(s)[2:][::-1]) if x is '1']
@@ -168,13 +177,14 @@ def make_rdm1(self,strs,civec,norb):
     return rdm1
 
 if __name__ == '__main__':
+    import time
     from pyscf import gto, scf, x2c, ao2mo
     from pyscf.tools.dump_mat import dump_tri
     mol = gto.Mole()
-    mol.basis = 'sto-3g'
+    mol.basis = 'cc-pvdz'
     mol.atom = '''
-    N  0.0000  0.0000  0.0000
-    N  0.0000  0.0000  1.1000
+Li      0.000000      0.000000      1.371504
+Li      0.000000      0.000000     -1.371504
     '''
     mol.verbose = 4
     mol.spin = 0
@@ -187,15 +197,24 @@ if __name__ == '__main__':
     dm = mf.get_init_guess() + 0.1j
     mf.kernel(dm)
 
+    lib.logger.TIMER_LEVEL = 3
+
     ncore = 4
     nelec = mol.nelectron - ncore
     e_core = mol.energy_nuc() 
     nao, nmo = mf.mo_coeff.shape
-    norb = nmo - ncore
+    nvir = 0
+    norb = nmo - ncore - nvir
     coeff = mf.mo_coeff
     if (norb > 64):
         raise RuntimeError('''Only support up to 64 orbitals''')
+    lib.logger.info(mf, '\n *** A simple relativistic CI module')
+    lib.logger.info(mf, 'Number of occupied core 2C spinors %s', ncore)
+    lib.logger.info(mf, 'Number of virtual core 2C spinors %s', nvir)
+    lib.logger.info(mf, 'Number of electrons to be correlated %s', nelec)
+    lib.logger.info(mf, 'Number of 2C spinors to be correlated %s', norb)
 
+    t0 = (time.clock(), time.time())
     hcore = mf.get_hcore()
     corevhf = numpy.zeros((nao,nao), dtype=numpy.complex128)
     if (ncore != 0):
@@ -208,28 +227,42 @@ if __name__ == '__main__':
 
     ci_idx = ncore + numpy.arange(norb)
     h1e = reduce(numpy.dot, (coeff[:, ci_idx].conj().T, hcore+corevhf, coeff[:,ci_idx]))
+    t5 = (time.clock(), time.time())
     eri_mo = ao2mo.kernel(mol, coeff[:, ci_idx], compact=False, intor='int2e_spinor')
+    lib.logger.timer(mf,'ao2mo build', *t5)
     eri_mo = eri_mo.reshape(norb,norb,norb,norb)
 
     orb_list = list(range(norb))
+    t1 = (time.clock(), time.time())
     strs = make_strings(mf,orb_list,nelec) 
+    lib.logger.timer(mf,'Strings build', *t1)
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
     h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
+    t2 = (time.clock(), time.time())
     h = make_hdiag(mf,h1e,eri_mo,h,strs) 
+    lib.logger.timer(mf,'<i|H|i> build', *t2)
+    t3 = (time.clock(), time.time())
     h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
+    lib.logger.timer(mf,'<i|H|j> build', *t3)
     #dump_tri(mf.stdout,h,ncol=15,digits=4)
 
+    t4 = (time.clock(), time.time())
     e,c = numpy.linalg.eigh(h)
+    lib.logger.timer(mf,'<i|H|j> diagonalization', *t4)
     e += e_core
+    lib.logger.info(mf, 'Core energy %s', e_core)
     lib.logger.info(mf, 'Ground state energy %s', e[0])
     #lib.logger.info(mf, 'Ground state civec %s', c[:,0])
     norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
+    lib.logger.timer(mf,'CI build', *t0)
 
-    rdm1 = make_rdm1(mf,strs,c[:,0],nmo)
+    t0 = (time.clock(), time.time())
+    rdm1 = make_rdm1(mf,strs,c[:,0],norb)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
     #print rdm1
     nelec = numpy.einsum('ii->', rdm1)
     lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+    lib.logger.timer(mf,'1-RDM build', *t0)
 
