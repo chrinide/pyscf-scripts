@@ -331,10 +331,12 @@ if __name__ == '__main__':
     mf.with_ssss = True
     mf.kernel()
 
-    erifile = lib.param.TMPDIR+'qed2.h5'
+    erifile = lib.param.TMPDIR+'/qed2.h5'
     ao2mo(mf,mf.mo_coeff,erifile)
-    #e1 = make_eq64(mf,erifile)
-    #e2 = make_eq146(mf,erifile)
-    #e3 = make_eq147(mf,erifile)
+
+    e1 = make_eq64(mf,erifile)
+    e2 = make_eq146(mf,erifile)
+    e3 = make_eq147(mf,erifile)
     e4 = make_eq148(mf,erifile)
     print e4[0]
+

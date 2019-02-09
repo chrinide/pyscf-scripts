@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from functools import reduce
 import numpy, math
-
+from functools import reduce
 from pyscf import scf, lib, ao2mo
 
 def find1(s):
@@ -105,8 +104,8 @@ def make_hdiag(self,h1e,h2e,h,strs):
     diagj = lib.einsum('iijj->ij', h2e)
     diagk = lib.einsum('ijji->ij', h2e)
     for i in range(ndets):
-        stra = strs[i]
-        occs = str2orblst(stra, norb)[0]
+        stri = strs[i]
+        occs = str2orblst(stri, norb)[0]
         e1 = h1e[occs,occs].sum()
         e2 = diagj[occs][:,occs].sum() \
            - diagk[occs][:,occs].sum()
@@ -147,11 +146,32 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                 continue
     return h
 
+def make_rdm1(self,strs,civec,norb):
+    ndets = strs.shape[0]
+    rdm1 = numpy.zeros((norb,norb), dtype=numpy.complex128)
+    for ip in range(ndets):
+        stri = strs[ip]
+        occs = str2orblst(stri, norb)[0]
+        ci2 = civec[ip] * civec[ip].conj()
+        for k in occs:
+            rdm1[k,k] += ci2
+        for jp in range(ip+1):
+            strj = strs[jp]
+            des, cre = str_diff(stri, strj)
+            if (len(des) == 1):
+                i,a = des[0], cre[0]
+                ci2 = civec[ip] * civec[jp].conj()
+                rdm1[i,a] += ci2
+                rdm1[a,i] += rdm1[i,a].conj()
+            else:
+                continue
+    return rdm1
+
 if __name__ == '__main__':
     from pyscf import gto, scf, x2c, ao2mo
     from pyscf.tools.dump_mat import dump_tri
     mol = gto.Mole()
-    mol.basis = 'cc-pvdz'
+    mol.basis = 'sto-3g'
     mol.atom = '''
     H 0.0000  0.0000  0.0000
     H 0.0000  0.0000  0.7500
@@ -163,7 +183,9 @@ if __name__ == '__main__':
     mol.build()
 
     mf = x2c.RHF(mol)
-    mf.kernel()
+    mf.with_x2c.basis = 'unc-ano'
+    dm = mf.get_init_guess() + 0.1j
+    mf.kernel(dm)
 
     e_core = mol.energy_nuc() 
     nao, nmo = mf.mo_coeff.shape
@@ -188,4 +210,11 @@ if __name__ == '__main__':
     #lib.logger.info(mf, 'Ground state civec %s', c[:,0])
     norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
+
+    rdm1 = make_rdm1(mf,strs,c[:,0],nmo)
+    #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
+    print rdm1
+
+    nelec = numpy.einsum('ij->', rdm1)
+    print nelec
 
