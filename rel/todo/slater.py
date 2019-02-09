@@ -56,7 +56,7 @@ def print_dets(self,strs):
         logger.info(self,'Det %d %s' % (i,bin(strs[i])))
     return self
 
-def make_strings(self,orb_list):
+def make_strings(self,orb_list,nelec):
     '''Generate string from the given orbital list.
 
     Returns:
@@ -73,7 +73,6 @@ def make_strings(self,orb_list):
     [0b1010, 0b1001, 0b11, 0b1100, 0b110, 0b101]
     '''
     orb_list = list(orb_list)
-    nelec = self.mol.nelectron
     assert(nelec >= 0)
     if nelec == 0:
         return numpy.asarray([0], dtype=numpy.int64)
@@ -146,6 +145,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                 continue
     return h
 
+# TODO: Add core/core-valence contribution
 def make_rdm1(self,strs,civec,norb):
     ndets = strs.shape[0]
     rdm1 = numpy.zeros((norb,norb), dtype=numpy.complex128)
@@ -173,8 +173,8 @@ if __name__ == '__main__':
     mol = gto.Mole()
     mol.basis = 'sto-3g'
     mol.atom = '''
-    H 0.0000  0.0000  0.0000
-    H 0.0000  0.0000  0.7500
+    N  0.0000  0.0000  0.0000
+    N  0.0000  0.0000  1.1000
     '''
     mol.verbose = 4
     mol.spin = 0
@@ -187,16 +187,32 @@ if __name__ == '__main__':
     dm = mf.get_init_guess() + 0.1j
     mf.kernel(dm)
 
+    ncore = 4
+    nelec = mol.nelectron - ncore
     e_core = mol.energy_nuc() 
     nao, nmo = mf.mo_coeff.shape
-    eri_mo = ao2mo.kernel(mol, mf.mo_coeff[:,:nmo], \
-    compact=False, intor='int2e_spinor')
-    eri_mo = eri_mo.reshape(nmo,nmo,nmo,nmo)
-    h1e = reduce(numpy.dot, (mf.mo_coeff[:,:nmo].conj().T, \
-    mf.get_hcore(), mf.mo_coeff[:,:nmo]))
+    norb = nmo - ncore
+    coeff = mf.mo_coeff
+    if (norb > 64):
+        raise RuntimeError('''Only support up to 64 orbitals''')
 
-    orb_list = list(range(nmo))
-    strs = make_strings(mf,orb_list) 
+    hcore = mf.get_hcore()
+    corevhf = numpy.zeros((nao,nao), dtype=numpy.complex128)
+    if (ncore != 0):
+        core_idx = numpy.arange(ncore)
+        core_dm = numpy.dot(coeff[:, core_idx], coeff[:, core_idx].conj().T)
+        e_core += numpy.einsum('ij,ji->', core_dm, hcore)
+        corevhf = mf.get_veff(mol, core_dm)
+        e_core += numpy.einsum('ij,ji->', core_dm, corevhf)*0.5
+        e_core = e_core.real
+
+    ci_idx = ncore + numpy.arange(norb)
+    h1e = reduce(numpy.dot, (coeff[:, ci_idx].conj().T, hcore+corevhf, coeff[:,ci_idx]))
+    eri_mo = ao2mo.kernel(mol, coeff[:, ci_idx], compact=False, intor='int2e_spinor')
+    eri_mo = eri_mo.reshape(norb,norb,norb,norb)
+
+    orb_list = list(range(norb))
+    strs = make_strings(mf,orb_list,nelec) 
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
     h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
@@ -213,8 +229,7 @@ if __name__ == '__main__':
 
     rdm1 = make_rdm1(mf,strs,c[:,0],nmo)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
-    print rdm1
-
-    nelec = numpy.einsum('ij->', rdm1)
-    print nelec
+    #print rdm1
+    nelec = numpy.einsum('ii->', rdm1)
+    lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
 
