@@ -106,6 +106,7 @@ def make_strings(self,orb_list,nelec):
     assert(strings.__len__() == num_strings(len(orb_list),nelec))
     return numpy.asarray(strings, dtype=numpy.int64)
 
+# TODO: When large number of dets it should be passed to C
 def make_hdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
     norb = h1e.shape[0]
@@ -117,9 +118,10 @@ def make_hdiag(self,h1e,h2e,h,strs):
         e1 = h1e[occs,occs].sum()
         e2 = diagj[occs][:,occs].sum() \
            - diagk[occs][:,occs].sum()
-        h[i,i] = e1 + e2*0.5
+        h[i] = e1 + e2*0.5
     return h
 
+# TODO: Write in C code to speed up
 def make_hoffdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
     norb = h1e.shape[0]
@@ -154,6 +156,42 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                 continue
     return h
 
+def contract(self,h1e,h2e,hdiag,civec,strs):
+    ndets = strs.shape[0]
+    norb = h1e.shape[0]
+    ci1 = numpy.zeros_like(civec)
+    for ip in range(ndets):
+        for jp in range(ip):
+            stri = strs[ip]
+            strj = strs[jp]
+            des, cre = str_diff(stri, strj)
+            if (len(des) == 1):
+                i,a = des[0], cre[0]
+                occs = str2orblst(stri, norb)[0]
+                v = h1e[a,i]
+                for k in occs:
+                    v += h2e[k,k,a,i] - h2e[k,i,a,k]
+                sign = cre_des_sign(a, i, stri)
+                ci1[jp] += sign*v*civec[ip]
+                ci1[ip] += (sign*v).conj()*civec[jp]
+            elif (len(des) == 2):
+                i,j = des
+                a,b = cre
+                if a > j or i > b:
+                    v = h2e[a,j,b,i] - h2e[a,i,b,j]
+                    sign = cre_des_sign(b, i, stri)
+                    sign*= cre_des_sign(a, j, stri)
+                else:
+                    v = h2e[a,i,b,j] - h2e[a,j,b,i]
+                    sign = cre_des_sign(b, j, stri)
+                    sign*= cre_des_sign(a, i, stri)
+                ci1[jp] += sign*v*civec[ip]
+                ci1[ip] += (sign*v).conj()*civec[jp]
+            else:
+                continue
+        ci1[ip] += hdiag[ip] * civec[ip]
+    return ci1
+
 # TODO: Add core/core-valence contribution
 def make_rdm1(self,strs,civec,norb):
     ndets = strs.shape[0]
@@ -181,7 +219,7 @@ if __name__ == '__main__':
     from pyscf import gto, scf, x2c, ao2mo
     from pyscf.tools.dump_mat import dump_tri
     mol = gto.Mole()
-    mol.basis = 'cc-pvdz'
+    mol.basis = 'sto-6g'
     mol.atom = '''
 Li      0.000000      0.000000      1.371504
 Li      0.000000      0.000000     -1.371504
@@ -206,9 +244,9 @@ Li      0.000000      0.000000     -1.371504
     nvir = 0
     norb = nmo - ncore - nvir
     coeff = mf.mo_coeff
+    lib.logger.info(mf, '\n *** A simple relativistic CI module')
     if (norb > 64):
         raise RuntimeError('''Only support up to 64 orbitals''')
-    lib.logger.info(mf, '\n *** A simple relativistic CI module')
     lib.logger.info(mf, 'Number of occupied core 2C spinors %s', ncore)
     lib.logger.info(mf, 'Number of virtual core 2C spinors %s', nvir)
     lib.logger.info(mf, 'Number of electrons to be correlated %s', nelec)
@@ -238,28 +276,51 @@ Li      0.000000      0.000000     -1.371504
     lib.logger.timer(mf,'Strings build', *t1)
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
-    h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
+    #h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
+    hdiag = numpy.zeros(ndets, dtype=numpy.complex128)
     t2 = (time.clock(), time.time())
-    h = make_hdiag(mf,h1e,eri_mo,h,strs) 
+    hdiag = make_hdiag(mf,h1e,eri_mo,hdiag,strs) 
     lib.logger.timer(mf,'<i|H|i> build', *t2)
+
     t3 = (time.clock(), time.time())
-    h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
-    lib.logger.timer(mf,'<i|H|j> build', *t3)
+    #h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
+    #lib.logger.timer(mf,'<i|H|j> build', *t3)
     #dump_tri(mf.stdout,h,ncol=15,digits=4)
+    #ci0 = numpy.zeros(ndets, dtype=numpy.complex128)
+    #ci0[0] = 1.0
+    numpy.random.seed()
+    ci0 = numpy.random.uniform(low=1e-3,high=1e-2,size=ndets)
+    ci0 = ci0.astype(numpy.complex128)
+    ci0[0] = 0.99
+    ci0 *= 1./numpy.linalg.norm(ci0)
+    def hop(c):
+        hc = contract(mf,h1e,eri_mo,hdiag,c,strs)
+        return hc.ravel()
+    level_shift = 0.01
+    precond = lambda x, e, *args: x/(hdiag-e+level_shift)
 
     t4 = (time.clock(), time.time())
-    e,c = numpy.linalg.eigh(h)
-    lib.logger.timer(mf,'<i|H|j> diagonalization', *t4)
+    #e,c = numpy.linalg.eigh(h)
+    nthreads = lib.num_threads()
+    conv_tol = 1e-8
+    lindep = 1e-12
+    with lib.with_omp_threads(nthreads):
+        e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep)
+    #lib.logger.timer(mf,'<i|H|j> diagonalization', *t4)
+    lib.logger.timer(mf,'<i|H|j> Davidson', *t4)
     e += e_core
     lib.logger.info(mf, 'Core energy %s', e_core)
-    lib.logger.info(mf, 'Ground state energy %s', e[0])
+    #lib.logger.info(mf, 'Ground state energy %s', e[0])
+    lib.logger.info(mf, 'Ground state energy %s', e)
     #lib.logger.info(mf, 'Ground state civec %s', c[:,0])
-    norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
+    #norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
+    norm = numpy.einsum('i,i->',c.conj(),c)
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
     lib.logger.timer(mf,'CI build', *t0)
 
     t0 = (time.clock(), time.time())
-    rdm1 = make_rdm1(mf,strs,c[:,0],norb)
+    #rdm1 = make_rdm1(mf,strs,c[:,0],norb)
+    rdm1 = make_rdm1(mf,strs,c,norb)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
     #print rdm1
     nelec = numpy.einsum('ii->', rdm1)
