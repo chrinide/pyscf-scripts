@@ -3,7 +3,7 @@
 CC = gcc
 LD = gcc
 CDEBUG = -Wpedantic -g -pg -Wunused -Wall
-CFLAGS = -O3 -mtune=native -fopenmp -fpic -lm $(CDEBUG)
+CFLAGS = -O3 -mtune=native -fpic -lm -fopenmp #$(CDEBUG)
 LFLAGS = -shared
 
 all: libci.so

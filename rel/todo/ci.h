@@ -1,12 +1,12 @@
 
-void diagonal(complex double *h1, complex double *eri, 
-              int norb, int nelec, uint64_t *strs, 
-              complex double *hdiag, uint64_t ndet);
+void diagonal(double complex *h1, double complex *diagj, 
+              double complex *diagk, int norb, int nelec, 
+              uint64_t *strs, uint64_t ndet, double complex *hdiag);
 
-void contract(complex double *h1, complex double *eri, 
+void contract(double complex *h1, double complex *eri, 
               int norb, int nelec, uint64_t *strs, 
-              complex double *civec, complex double *hdiag, 
-              uint64_t ndet, complex double *ci1);
+              double complex *civec, double complex *hdiag, 
+              uint64_t ndet, double complex *ci1);
 
 int n_excitations(uint64_t *str1, uint64_t *str2);
 double compute_cre_des_sign(int a, int i, uint64_t *stria);

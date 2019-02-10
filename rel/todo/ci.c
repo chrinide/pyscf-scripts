@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,16 +6,16 @@
 #include "ci.h"
 
 // Computes <i|H|i>
-void diagonal(complex double *h1, complex double *eri, 
-              int norb, int nelec, uint64_t *strs, 
-              complex double *hdiag, uint64_t ndet){
+void diagonal(double complex *h1, double complex *diagj, 
+              double complex *diagk, int norb, int nelec, 
+              uint64_t *strs, uint64_t ndet, double complex *hdiag){
 }
 
 // Computes C'=H*C
-void contract(complex double *h1, complex double *eri, 
+void contract(double complex *h1, double complex *eri, 
               int norb, int nelec, uint64_t *strs, 
-              complex double *civec, complex double *hdiag, 
-              uint64_t ndet, complex double *ci1){
+              double complex *civec, double complex *hdiag, 
+              uint64_t ndet, double complex *ci1){
 
   size_t ip, jp;
 
@@ -36,12 +35,12 @@ void contract(complex double *h1, complex double *eri,
         int n_excit = n_excitations(stri, strj);
         // Single excitation
         if (n_excit == 1){
+          int p;
           int *ia = get_single_excitation(stri, strj);
           int i = ia[0];
           int a = ia[1];
-          double fai = h1[a*norb + i];
+          double complex fai = h1[a*norb + i];
           int *occs = compute_occ_list(stri, norb, nelec);
-          int p;
           for (p=0; p<nelec; ++p){
             int k = occs[p];
             size_t kkai = k*norb*norb*norb + k*norb*norb + a*norb + i;
@@ -49,16 +48,37 @@ void contract(complex double *h1, complex double *eri,
             fai += eri[kkai] - eri[kiak];
           }
           if (fabs(fai) > 1.0e-14){
-            //double sign = compute_cre_des_sign(a, i, stri);
-            //fai *= sign;
-            //ci1[ip] += fai*civec[jp];
-            //ci1[jp] += conj(fai)*civec[ip];
+            double sign = compute_cre_des_sign(a, i, stri);
+            fai *= sign;
+            ci1[ip] += fai*civec[jp];
+            ci1[jp] += conj(fai)*civec[ip];
           }
           free(occs);
         }
         // Double excitation
         else if (n_excit == 2){
-          continue;
+	        int *ijab = get_double_excitation(stri, strj);
+          int i = ijab[0]; int j = ijab[1]; int a = ijab[2]; int b = ijab[3];
+          double complex v;
+          double sign;
+          size_t ajbi = a*norb*norb*norb + j*norb*norb + b*norb + i;
+          size_t aibj = a*norb*norb*norb + i*norb*norb + b*norb + j;
+          if (a > j || i > b){
+            v = eri[ajbi] - eri[aibj];
+            sign = compute_cre_des_sign(b, i, stri);
+            sign *= compute_cre_des_sign(a, j, stri);
+          } 
+          else {
+            v = eri[aibj] - eri[ajbi];
+            sign = compute_cre_des_sign(b, j, stri);
+            sign *= compute_cre_des_sign(a, i, stri);
+          }
+          if (fabs(v) > 1.0e-14){
+            v *= sign;
+            ci1[ip] += v*civec[jp];
+            ci1[jp] += conj(v)*civec[ip];
+          }
+          free(ijab);
         }
         else {
           continue;
@@ -67,8 +87,6 @@ void contract(complex double *h1, complex double *eri,
     }
     ci1[ip] += hdiag[ip]*civec[ip]; // Diagonal term 
   }
-      
-
 }
 
 // Compute a list of occupied orbitals for a given string
@@ -108,6 +126,22 @@ inline int n_excitations(uint64_t *str1, uint64_t *str2){
 //  return x;
 //}
 
+inline double compute_cre_des_sign(int p, int q, uint64_t *string0){
+  uint64_t mask;
+  if (p > q){
+    mask = (1ULL << p) - (1ULL << (q+1));
+  } 
+  else {
+    mask = (1ULL << q) - (1ULL << (p+1));
+  }
+  if (popcount(string0[0] & mask) % 2){
+    return -1.0;
+  } 
+  else {
+    return 1.0;
+  }
+}
+
 // Compute orbital indices for a single excitation 
 int *get_single_excitation(uint64_t *str1, uint64_t *str2){
   int *ia = malloc(sizeof(int)*2);
@@ -117,10 +151,45 @@ int *get_single_excitation(uint64_t *str1, uint64_t *str2){
   if (popcount(str_particle) == 1){
     ia[1] = trailz(str_particle);
   }
-  if (popcount(str_hole) == 1) {
+  if (popcount(str_hole) == 1){
     ia[0] = trailz(str_hole);
   }
   return ia;
+}
+
+// Compute orbital indices for a double excitation 
+int *get_double_excitation(uint64_t *str1, uint64_t *str2){
+  int *ijab = malloc(sizeof(int)*4);
+  int particle_ind = 2;
+  int hole_ind = 0;
+  uint64_t str_tmp = str1[0] ^ str2[0];
+  uint64_t str_particle = str_tmp & str2[0];
+  uint64_t str_hole = str_tmp & str1[0];
+  int n_particle = popcount(str_particle);
+  int n_hole = popcount(str_hole);
+  if (n_particle == 1){
+    ijab[particle_ind] = trailz(str_particle);
+    particle_ind++;
+  }
+  else if (n_particle == 2){
+    int a = trailz(str_particle);
+    ijab[2] = a;
+    str_particle &= ~(1ULL << a);
+    int b = trailz(str_particle);
+    ijab[3] = b;
+  }
+  if (n_hole == 1){
+    ijab[hole_ind] = trailz(str_hole);
+    hole_ind++;
+  }
+  else if (n_hole == 2){
+    int i = trailz(str_hole);
+    ijab[0] = i;
+    str_hole &= ~(1ULL << i);
+    int j = trailz(str_hole);
+    ijab[1] = j;
+  }
+  return ijab;
 }
 
 // Compute number of trailing zeros in a bit string

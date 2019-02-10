@@ -127,6 +127,28 @@ def make_hdiag(self,h1e,h2e,h,strs):
         h[i] = e1 + e2*0.5
     return h
 
+def c_make_hdiag(self,h1e,h2e,hdiag,strs,nelec):
+    ndets = strs.shape[0]
+    norb = h1e.shape[0]
+    diagj = lib.einsum('iijj->ij', h2e)
+    diagk = lib.einsum('ijji->ij', h2e)
+    h1e = numpy.asarray(h1e, order='C')
+    diagj = numpy.asarray(diagj, order='C')
+    diagk = numpy.asarray(diagk, order='C')
+    hdiag = numpy.asarray(hdiag, order='C')
+    strs = numpy.asarray(strs, order='C')
+
+    libci.diagonal(h1e.ctypes.data_as(ctypes.c_void_p), 
+                   diagj.ctypes.data_as(ctypes.c_void_p), 
+                   diagk.ctypes.data_as(ctypes.c_void_p), 
+                   ctypes.c_int(norb), 
+                   ctypes.c_int(nelec), 
+                   strs.ctypes.data_as(ctypes.c_void_p), 
+                   ctypes.c_ulonglong(ndets), 
+                   hdiag.ctypes.data_as(ctypes.c_void_p)) 
+
+    return hdiag
+
 # TODO: Write in C code to speed up
 def make_hoffdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
@@ -221,6 +243,7 @@ def c_contract(self,h1e,h2e,hdiag,civec,strs,nelec):
     return ci1
 
 # TODO: Add core/core-valence contribution
+# TODO: to slow write in C
 def make_rdm1(self,strs,civec,norb):
     ndets = strs.shape[0]
     rdm1 = numpy.zeros((norb,norb), dtype=numpy.complex128)
@@ -249,9 +272,11 @@ if __name__ == '__main__':
     mol = gto.Mole()
     mol.basis = 'sto-6g'
     mol.atom = '''
-Li      0.000000      0.000000      1.371504
-Li      0.000000      0.000000     -1.371504
+N      0.000000      0.000000      0.000000
+N      0.000000      0.000000      1.100000
     '''
+#Li      0.000000      0.000000      1.371504
+#Li      0.000000      0.000000     -1.371504
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
@@ -273,12 +298,12 @@ Li      0.000000      0.000000     -1.371504
     norb = nmo - ncore - nvir
     coeff = mf.mo_coeff
     lib.logger.info(mf, '\n *** A simple relativistic CI module')
-    if (norb > 64):
-        raise RuntimeError('''Only support up to 64 orbitals''')
     lib.logger.info(mf, 'Number of occupied core 2C spinors %s', ncore)
     lib.logger.info(mf, 'Number of virtual core 2C spinors %s', nvir)
     lib.logger.info(mf, 'Number of electrons to be correlated %s', nelec)
     lib.logger.info(mf, 'Number of 2C spinors to be correlated %s', norb)
+    if (norb > 64):
+        raise RuntimeError('''Only support up to 64 orbitals''')
 
     t0 = (time.clock(), time.time())
     hcore = mf.get_hcore()
@@ -322,7 +347,8 @@ Li      0.000000      0.000000     -1.371504
     ci0[0] = 0.99
     ci0 *= 1./numpy.linalg.norm(ci0)
     def hop(c):
-        hc = contract(mf,h1e,eri_mo,hdiag,c,strs)
+        #hc = contract(mf,h1e,eri_mo,hdiag,c,strs)
+        hc = c_contract(mf,h1e,eri_mo,hdiag,c,strs,nelec)
         return hc.ravel()
     level_shift = 0.01
     precond = lambda x, e, *args: x/(hdiag-e+level_shift)
@@ -330,10 +356,19 @@ Li      0.000000      0.000000     -1.371504
     t4 = (time.clock(), time.time())
     #e,c = numpy.linalg.eigh(h)
     nthreads = lib.num_threads()
-    conv_tol = 1e-8
-    lindep = 1e-12
+    conv_tol = 1e-12
+    lindep = 1e-14
+    max_cycle = 100
+    max_space = 12
+    lessio = False
+    max_memory = 2000
+    follow_state = False 
+    nroots = 1
     with lib.with_omp_threads(nthreads):
         e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep)
+                           #max_cycle=max_cycle, max_space=max_space, max_memory=max_memory, 
+                           #dot=numpy.dot, nroots=nroots, lessio=lessio, verbose=mf.verbose,
+                           #follow_state=follow_state)
     #lib.logger.timer(mf,'<i|H|j> diagonalization', *t4)
     lib.logger.timer(mf,'<i|H|j> Davidson', *t4)
     e += e_core
@@ -348,13 +383,13 @@ Li      0.000000      0.000000     -1.371504
 
     t0 = (time.clock(), time.time())
     #rdm1 = make_rdm1(mf,strs,c[:,0],norb)
-    rdm1 = make_rdm1(mf,strs,c,norb)
+    #rdm1 = make_rdm1(mf,strs,c,norb)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
     #print rdm1
-    nelec = numpy.einsum('ii->', rdm1)
-    lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
-    lib.logger.timer(mf,'1-RDM build', *t0)
+    #nelec = numpy.einsum('ii->', rdm1)
+    #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+    #lib.logger.timer(mf,'1-RDM build', *t0)
 
-    nelec = mol.nelectron - ncore
-    c_contract(mf,h1e,eri_mo,hdiag,ci0,strs,nelec) 
+    #nelec = mol.nelectron - ncore
+    #c_contract(mf,h1e,eri_mo,hdiag,ci0,strs,nelec) 
 
