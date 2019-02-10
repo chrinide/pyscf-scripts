@@ -14,10 +14,11 @@ int *compute_occ_list(uint64_t *string, int norb, int nelec);
 int *get_single_excitation(uint64_t *str1, uint64_t *str2);
 int *get_double_excitation(uint64_t *str1, uint64_t *str2);
 
-//int popcount(uint64_t bb);
-//int trailz(uint64_t v);
-extern int __builtin_popcountll (uint64_t x_0);
-#define popcount(X) __builtin_popcountll((uint64_t) X)
-extern int __builtin_ctzll (uint64_t x_0);
-#define trailz(X) __builtin_ctzll((uint64_t) X)
+int popcount(uint64_t bb);
+int trailz(uint64_t v);
+
+//extern int __builtin_popcountll (uint64_t x_0);
+//#define popcount(X) __builtin_popcountll((uint64_t) X)
+//extern int __builtin_ctzll (uint64_t x_0);
+//#define trailz(X) __builtin_ctzll((uint64_t) X)
 

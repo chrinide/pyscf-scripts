@@ -364,8 +364,8 @@ N      0.000000      0.000000      1.100000
     max_memory = 2000
     follow_state = False 
     nroots = 1
-    with lib.with_omp_threads(nthreads):
-        e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep)
+    #with lib.with_omp_threads(nthreads):
+    e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep)
                            #max_cycle=max_cycle, max_space=max_space, max_memory=max_memory, 
                            #dot=numpy.dot, nroots=nroots, lessio=lessio, verbose=mf.verbose,
                            #follow_state=follow_state)

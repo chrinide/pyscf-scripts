@@ -17,16 +17,23 @@ void contract(double complex *h1, double complex *eri,
               double complex *civec, double complex *hdiag, 
               uint64_t ndet, double complex *ci1){
 
-  size_t ip, jp;
-
-  uint64_t *str1 = strs;
   int *ts = malloc(sizeof(int)*ndet); 
-  ts[0] = 0;
-  for (ip=1; ip<ndet; ++ip){
-    uint64_t *stri = strs + ip;
-    ts[ip] = n_excitations(stri, str1);
+  #pragma omp parallel default(none) shared(strs, ndet, ts)
+  {
+    size_t ip;
+    uint64_t *str1 = strs;
+    ts[0] = 0;
+    #pragma omp for schedule(static)
+    for (ip=1; ip<ndet; ++ip){
+      uint64_t *stri = strs + ip;
+      ts[ip] = n_excitations(stri, str1);
+    }
   }
 
+  //#pragma omp parallel default(none) shared(strs, ndet, ts, h1, eri, norb, nelec, civec, hdiag, ci1)
+  //{
+  size_t ip, jp;
+  //#pragma omp for schedule(dynamic)
   for (ip=0; ip<ndet; ++ip){
     for (jp=0; jp<ip; ++jp){
       if (abs(ts[ip] - ts[jp]) < 3){
@@ -50,6 +57,7 @@ void contract(double complex *h1, double complex *eri,
           if (fabs(fai) > 1.0e-14){
             double sign = compute_cre_des_sign(a, i, stri);
             fai *= sign;
+            //#pragma omp critical
             ci1[ip] += fai*civec[jp];
             ci1[jp] += conj(fai)*civec[ip];
           }
@@ -75,6 +83,7 @@ void contract(double complex *h1, double complex *eri,
           }
           if (fabs(v) > 1.0e-14){
             v *= sign;
+            //#pragma omp critical
             ci1[ip] += v*civec[jp];
             ci1[jp] += conj(v)*civec[ip];
           }
@@ -85,8 +94,11 @@ void contract(double complex *h1, double complex *eri,
         }
       }
     }
+    //#pragma omp critical
     ci1[ip] += hdiag[ip]*civec[ip]; // Diagonal term 
   }
+  //}
+  free(ts);
 }
 
 // Compute a list of occupied orbitals for a given string
@@ -109,22 +121,6 @@ inline int n_excitations(uint64_t *str1, uint64_t *str2){
   d = popcount(str1[0] ^ str2[0]);
   return d/2;
 }
-
-//int popcount(uint64_t x){
-//  const uint64_t m1  = 0x5555555555555555; //binary: 0101...
-//  const uint64_t m2  = 0x3333333333333333; //binary: 00110011..
-//  const uint64_t m4  = 0x0f0f0f0f0f0f0f0f; //binary:  4 zeros,  4 ones ...
-//  const uint64_t m8  = 0x00ff00ff00ff00ff; //binary:  8 zeros,  8 ones ...
-//  const uint64_t m16 = 0x0000ffff0000ffff; //binary: 16 zeros, 16 ones ...
-//  const uint64_t m32 = 0x00000000ffffffff; //binary: 32 zeros, 32 ones
-//  x = (x & m1 ) + ((x >>  1) & m1 ); //put count of each  2 bits into those  2 bits 
-//  x = (x & m2 ) + ((x >>  2) & m2 ); //put count of each  4 bits into those  4 bits 
-//  x = (x & m4 ) + ((x >>  4) & m4 ); //put count of each  8 bits into those  8 bits 
-//  x = (x & m8 ) + ((x >>  8) & m8 ); //put count of each 16 bits into those 16 bits 
-//  x = (x & m16) + ((x >> 16) & m16); //put count of each 32 bits into those 32 bits 
-//  x = (x & m32) + ((x >> 32) & m32); //put count of each 64 bits into those 64 bits 
-//  return x;
-//}
 
 inline double compute_cre_des_sign(int p, int q, uint64_t *string0){
   uint64_t mask;
@@ -193,17 +189,33 @@ int *get_double_excitation(uint64_t *str1, uint64_t *str2){
 }
 
 // Compute number of trailing zeros in a bit string
-//int trailz(uint64_t v){
-//  int c = 64;
-//  // Trick to unset all bits but the first one
-//  v &= -(int64_t) v;
-//  if (v) c--;
-//  if (v & 0x00000000ffffffff) c -= 32;
-//  if (v & 0x0000ffff0000ffff) c -= 16;
-//  if (v & 0x00ff00ff00ff00ff) c -= 8;
-//  if (v & 0x0f0f0f0f0f0f0f0f) c -= 4;
-//  if (v & 0x3333333333333333) c -= 2;
-//  if (v & 0x5555555555555555) c -= 1;
-//  return c;
-//}
+int trailz(uint64_t v){
+  int c = 64;
+  // Trick to unset all bits but the first one
+  v &= -(int64_t) v;
+  if (v) c--;
+  if (v & 0x00000000ffffffff) c -= 32;
+  if (v & 0x0000ffff0000ffff) c -= 16;
+  if (v & 0x00ff00ff00ff00ff) c -= 8;
+  if (v & 0x0f0f0f0f0f0f0f0f) c -= 4;
+  if (v & 0x3333333333333333) c -= 2;
+  if (v & 0x5555555555555555) c -= 1;
+  return c;
+}
+
+int popcount(uint64_t x){
+  const uint64_t m1  = 0x5555555555555555; //binary: 0101...
+  const uint64_t m2  = 0x3333333333333333; //binary: 00110011..
+  const uint64_t m4  = 0x0f0f0f0f0f0f0f0f; //binary:  4 zeros,  4 ones ...
+  const uint64_t m8  = 0x00ff00ff00ff00ff; //binary:  8 zeros,  8 ones ...
+  const uint64_t m16 = 0x0000ffff0000ffff; //binary: 16 zeros, 16 ones ...
+  const uint64_t m32 = 0x00000000ffffffff; //binary: 32 zeros, 32 ones
+  x = (x & m1 ) + ((x >>  1) & m1 ); //put count of each  2 bits into those  2 bits 
+  x = (x & m2 ) + ((x >>  2) & m2 ); //put count of each  4 bits into those  4 bits 
+  x = (x & m4 ) + ((x >>  4) & m4 ); //put count of each  8 bits into those  8 bits 
+  x = (x & m8 ) + ((x >>  8) & m8 ); //put count of each 16 bits into those 16 bits 
+  x = (x & m16) + ((x >> 16) & m16); //put count of each 32 bits into those 32 bits 
+  x = (x & m32) + ((x >> 32) & m32); //put count of each 64 bits into those 64 bits 
+  return x;
+}
 
