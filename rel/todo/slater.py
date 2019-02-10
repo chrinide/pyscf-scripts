@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 
-import numpy, math, sys, signal, os
+import os
+import sys
+import math
+import numpy
+import ctypes
+import signal
 from functools import reduce
+
 from pyscf import scf, lib, ao2mo
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -10,8 +16,8 @@ signal.signal(signal.SIGINT, signal.SIG_DFL)
 if sys.version_info >= (3,):
     unicode = str
 
-#_loaderpath = os.path.dirname(__file__)
-#libci = numpy.ctypeslib.load_library('libci.so', _loaderpath)
+_loaderpath = os.path.dirname(__file__)
+libci = numpy.ctypeslib.load_library('libci.so', _loaderpath)
 
 def find1(s):
     return [i for i,x in enumerate(bin(s)[2:][::-1]) if x is '1']
@@ -192,6 +198,28 @@ def contract(self,h1e,h2e,hdiag,civec,strs):
         ci1[ip] += hdiag[ip] * civec[ip]
     return ci1
 
+def c_contract(self,h1e,h2e,hdiag,civec,strs,nelec):
+    ndets = strs.shape[0]
+    norb = h1e.shape[0]
+    ci1 = numpy.zeros_like(civec)
+    h1e = numpy.asarray(h1e, order='C')
+    h2e = numpy.asarray(h2e, order='C')
+    strs = numpy.asarray(strs, order='C')
+    civec = numpy.asarray(civec, order='C')
+    hdiag = numpy.asarray(hdiag, order='C')
+    ci1 = numpy.asarray(ci1, order='C')
+
+    libci.contract(h1e.ctypes.data_as(ctypes.c_void_p), 
+                   h2e.ctypes.data_as(ctypes.c_void_p), 
+                   ctypes.c_int(norb), 
+                   ctypes.c_int(nelec), 
+                   strs.ctypes.data_as(ctypes.c_void_p), 
+                   civec.ctypes.data_as(ctypes.c_void_p), 
+                   hdiag.ctypes.data_as(ctypes.c_void_p), 
+                   ctypes.c_ulonglong(ndets), 
+                   ci1.ctypes.data_as(ctypes.c_void_p))
+    return ci1
+
 # TODO: Add core/core-valence contribution
 def make_rdm1(self,strs,civec,norb):
     ndets = strs.shape[0]
@@ -326,4 +354,7 @@ Li      0.000000      0.000000     -1.371504
     nelec = numpy.einsum('ii->', rdm1)
     lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
     lib.logger.timer(mf,'1-RDM build', *t0)
+
+    nelec = mol.nelectron - ncore
+    c_contract(mf,h1e,eri_mo,hdiag,ci0,strs,nelec) 
 
