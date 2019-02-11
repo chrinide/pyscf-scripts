@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include "ci.h"
 
+// TODO: add selection criteria as CIPSI o HCI, it should not be
+// to much complex without been highly eficient
+
 // Computes <i|H|i>
 void diagonal(double complex *h1, double complex *diagj, 
               double complex *diagk, int norb, int nelec, 
@@ -17,35 +20,43 @@ void contract(double complex *h1, double complex *eri,
               double complex *civec, double complex *hdiag, 
               uint64_t ndet, double complex *ci1){
 
+  // TODO: merge booth parallel sections
   int *ts = malloc(sizeof(int)*ndet); 
-  #pragma omp parallel default(none) shared(strs, ndet, ts)
+  #pragma omp parallel default(none) shared(strs, ndet, ts, ci1)
   {
     size_t ip;
     uint64_t *str1 = strs;
     ts[0] = 0;
+    ci1[0] = 0.0;
     #pragma omp for schedule(static)
     for (ip=1; ip<ndet; ++ip){
       uint64_t *stri = strs + ip;
       ts[ip] = n_excitations(stri, str1);
+      ci1[ip] = 0.0;
     }
   }
 
-  //#pragma omp parallel default(none) shared(strs, ndet, ts, h1, eri, norb, nelec, civec, hdiag, ci1)
-  //{
+  // TODO: to avoid razor condition and thread unsafe by now all dets are looped 
+  // one instead can loop only over upper or down part of the matrix
+  #pragma omp parallel default(none) shared(strs, ndet, ts, h1, eri, norb, nelec, civec, hdiag ,ci1)
+  {
+  int p;
   size_t ip, jp;
-  //#pragma omp for schedule(dynamic)
+  #pragma omp for schedule(dynamic)
   for (ip=0; ip<ndet; ++ip){
-    for (jp=0; jp<ip; ++jp){
+    for (jp=0; jp<ndet; ++jp){
       if (abs(ts[ip] - ts[jp]) < 3){
         uint64_t *stri = strs + ip;
         uint64_t *strj = strs + jp;
         int n_excit = n_excitations(stri, strj);
+        // Diagonal term  
+        if (ip == jp){
+          ci1[ip] += hdiag[ip]*civec[ip];
+        }
         // Single excitation
-        if (n_excit == 1){
-          int p;
+        else if (n_excit == 1){
           int *ia = get_single_excitation(stri, strj);
-          int i = ia[0];
-          int a = ia[1];
+          int i = ia[0]; int a = ia[1];
           double complex fai = h1[a*norb + i];
           int *occs = compute_occ_list(stri, norb, nelec);
           for (p=0; p<nelec; ++p){
@@ -57,9 +68,8 @@ void contract(double complex *h1, double complex *eri,
           if (fabs(fai) > 1.0e-14){
             double sign = compute_cre_des_sign(a, i, stri);
             fai *= sign;
-            //#pragma omp critical
             ci1[ip] += fai*civec[jp];
-            ci1[jp] += conj(fai)*civec[ip];
+            //ci1[jp] += conj(fai)*civec[ip];
           }
           free(occs);
         }
@@ -67,37 +77,37 @@ void contract(double complex *h1, double complex *eri,
         else if (n_excit == 2){
 	        int *ijab = get_double_excitation(stri, strj);
           int i = ijab[0]; int j = ijab[1]; int a = ijab[2]; int b = ijab[3];
-          double complex v;
-          double sign;
           size_t ajbi = a*norb*norb*norb + j*norb*norb + b*norb + i;
           size_t aibj = a*norb*norb*norb + i*norb*norb + b*norb + j;
+          double complex v;
+          double sign;
           if (a > j || i > b){
             v = eri[ajbi] - eri[aibj];
-            sign = compute_cre_des_sign(b, i, stri);
-            sign *= compute_cre_des_sign(a, j, stri);
+            if (fabs(v) > 1.0e-14){
+              sign = compute_cre_des_sign(b, i, stri);
+              sign *= compute_cre_des_sign(a, j, stri);
+              v *= sign;
+              ci1[ip] += v*civec[jp];
+              //ci1[jp] += conj(v)*civec[ip];
+            }
           } 
           else {
             v = eri[aibj] - eri[ajbi];
-            sign = compute_cre_des_sign(b, j, stri);
-            sign *= compute_cre_des_sign(a, i, stri);
-          }
-          if (fabs(v) > 1.0e-14){
-            v *= sign;
-            //#pragma omp critical
-            ci1[ip] += v*civec[jp];
-            ci1[jp] += conj(v)*civec[ip];
+            if (fabs(v) > 1.0e-14){
+              sign = compute_cre_des_sign(b, j, stri);
+              sign *= compute_cre_des_sign(a, i, stri);
+              v *= sign;
+              ci1[ip] += v*civec[jp];
+              //ci1[jp] += conj(v)*civec[ip];
+            }
           }
           free(ijab);
         }
-        else {
-          continue;
-        }
       }
     }
-    //#pragma omp critical
-    ci1[ip] += hdiag[ip]*civec[ip]; // Diagonal term 
+    //ci1[ip] += hdiag[ip]*civec[ip]; // Diagonal term 
   }
-  //}
+  }
   free(ts);
 }
 
@@ -189,7 +199,7 @@ int *get_double_excitation(uint64_t *str1, uint64_t *str2){
 }
 
 // Compute number of trailing zeros in a bit string
-int trailz(uint64_t v){
+/*int trailz(uint64_t v){
   int c = 64;
   // Trick to unset all bits but the first one
   v &= -(int64_t) v;
@@ -217,5 +227,170 @@ int popcount(uint64_t x){
   x = (x & m16) + ((x >> 16) & m16); //put count of each 32 bits into those 32 bits 
   x = (x & m32) + ((x >> 32) & m32); //put count of each 64 bits into those 64 bits 
   return x;
+}*/
+
+// 1-RDM 
+void rdm1(int norb, int nelec, uint64_t *strs, 
+          double complex *civec, uint64_t ndet, 
+          double complex *rdm1){
+
+  #pragma omp parallel default(none) shared(norb, nelec, strs, civec, ndet, rdm1)
+  {
+    size_t ip, jp, p;
+    double complex ci_sq = 0.0;
+    double complex *rdm1_private = malloc(sizeof(double complex)*norb*norb);
+    for (p=0; p<norb*norb; ++p){
+      rdm1_private[p] = 0.0;
+    }
+    // Loop over pairs of determinants
+    #pragma omp for schedule(dynamic) 
+    for (ip=0; ip<ndet; ++ip){
+      for (jp=0; jp<ndet; ++jp){
+        uint64_t *stri = strs + ip;
+        uint64_t *strj = strs + jp;
+        int n_excit = n_excitations(stri, strj);
+        // Diagonal term
+        if (ip == jp) {
+          int *occs = compute_occ_list(stri, norb, nelec);
+          ci_sq = conj(civec[ip])*civec[ip];
+          for (p = 0; p < nelec; ++p) {
+            int k = occs[p];
+            int kk = k*norb + k;
+            rdm1_private[kk] += ci_sq;
+          }
+          free(occs);
+        }
+        // Single excitation
+        else if (n_excit == 1) {
+          int *ia = get_single_excitation(stri, strj);
+          int i = ia[0]; int a = ia[1];
+          double sign = compute_cre_des_sign(a, i, stri);
+          int *occs = compute_occ_list(stri, norb, nelec);
+          ci_sq = sign*conj(civec[ip])*civec[jp];
+          rdm1_private[a*norb + i] += ci_sq;
+          free(ia);
+        }
+      }
+    }
+    #pragma omp critical
+    {
+      for (p=0; p<norb*norb; ++p){
+        rdm1[p] += rdm1_private[p];
+      }
+    }
+    free(rdm1_private);
+  } // end omp
 }
 
+void rdm12(int norb, int nelec, uint64_t *strs, 
+           double complex *civec, uint64_t ndet, 
+           double complex *rdm1, double complex *rdm2){
+
+  #pragma omp parallel default(none) shared(norb, nelec, strs, civec, ndet, rdm1, rdm2)
+  {
+    size_t ip, jp, p, q;
+    double complex ci_sq = 0.0;
+    double complex *rdm1_private = malloc(sizeof(double complex)*norb*norb);
+    double complex *rdm2_private = malloc(sizeof(double complex)*norb*norb*norb*norb);
+    for (p=0; p<norb*norb; ++p){
+      rdm1[p] = 0.0;
+      rdm1_private[p] = 0.0;
+    }
+    for (p=0; p<norb*norb*norb*norb; ++p){
+      rdm2[p] = 0.0;
+      rdm2_private[p] = 0.0;
+    }
+    // Loop over pairs of determinants
+    #pragma omp for schedule(dynamic) 
+    for (ip=0; ip<ndet; ++ip){
+      for (jp=0; jp<ndet; ++jp){
+        uint64_t *stri = strs + ip;
+        uint64_t *strj = strs + jp;
+        int n_excit = n_excitations(stri, strj);
+        // Diagonal term
+        if (ip == jp) {
+          int *occs = compute_occ_list(stri, norb, nelec);
+          ci_sq = conj(civec[ip])*civec[ip];
+          for (p = 0; p < nelec; ++p) {
+            int k = occs[p];
+            int kk = k*norb + k;
+            rdm1_private[kk] += ci_sq;
+          }
+          // Diagonal rdm2
+          for (p=0; p<nelec; ++p){
+            int k = occs[p];
+            for (q=0; q<nelec; ++q){
+              int j = occs[q];
+              size_t kjkj = k*norb*norb*norb + j*norb*norb + k*norb + j;
+              size_t kjjk = k*norb*norb*norb + j*norb*norb + j*norb + k;
+              rdm2_private[kjkj] += ci_sq;
+              rdm2_private[kjjk] -= ci_sq;
+            }
+          }
+          free(occs);
+        }
+        // Single excitation
+        else if (n_excit == 1) {
+          int *ia = get_single_excitation(stri, strj);
+          int i = ia[0]; int a = ia[1];
+          double sign = compute_cre_des_sign(a, i, stri);
+          int *occs = compute_occ_list(stri, norb, nelec);
+          ci_sq = sign*conj(civec[ip])*civec[jp];
+          rdm1_private[a*norb + i] += ci_sq;
+          for (p=0; p<nelec; ++p) {
+            int k = occs[p];
+            size_t akik = a*norb*norb*norb + k*norb*norb + i*norb + k;
+            size_t akki = a*norb*norb*norb + k*norb*norb + k*norb + i;
+            size_t kaki = k*norb*norb*norb + a*norb*norb + k*norb + i;
+            size_t kaik = k*norb*norb*norb + a*norb*norb + i*norb + k;
+            rdm2_private[akik] += ci_sq;
+            rdm2_private[akki] -= ci_sq;
+            rdm2_private[kaik] -= ci_sq;
+            rdm2_private[kaki] += ci_sq;
+          }
+          free(ia);
+        }
+        // Double excitation
+        else if (n_excit == 2) {
+	        int *ijab = get_double_excitation(stri, strj);
+          int i = ijab[0]; int j = ijab[1]; int a = ijab[2]; int b = ijab[3];
+          double sign;
+          size_t baij = b*norb*norb*norb + a*norb*norb + i*norb + j;
+          size_t baji = b*norb*norb*norb + a*norb*norb + j*norb + i;
+          size_t abij = a*norb*norb*norb + b*norb*norb + i*norb + j;
+          size_t abji = a*norb*norb*norb + b*norb*norb + j*norb + i;
+          if (a > j || i > b) {
+            sign = compute_cre_des_sign(b, i, stri);
+            sign *= compute_cre_des_sign(a, j, stri);
+            ci_sq = sign*conj(civec[ip])*civec[jp];
+            rdm2_private[baij] += ci_sq;
+            rdm2_private[baji] -= ci_sq;
+            rdm2_private[abij] -= ci_sq;
+            rdm2_private[abji] += ci_sq;
+          } 
+          else {
+            sign = compute_cre_des_sign(b, j, stri);
+            sign *= compute_cre_des_sign(a, i, stri);
+            ci_sq = sign*conj(civec[ip])*civec[jp];
+            rdm2_private[baij] -= ci_sq;
+            rdm2_private[baji] += ci_sq;
+            rdm2_private[abij] += ci_sq;
+            rdm2_private[abji] -= ci_sq;
+          }
+          free(ijab);
+        }
+      }
+    }
+    #pragma omp critical
+    {
+      for (p=0; p<norb*norb; ++p){
+        rdm1[p] += rdm1_private[p];
+      }
+      for (p=0; p<norb*norb*norb*norb; ++p){
+        rdm2[p] += rdm2_private[p];
+      }
+    }
+    free(rdm1_private);
+    free(rdm2_private);
+  } // end omp
+}

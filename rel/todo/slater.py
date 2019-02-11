@@ -116,8 +116,8 @@ def make_strings(self,orb_list,nelec):
 def make_hdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
     norb = h1e.shape[0]
-    diagj = lib.einsum('iijj->ij', h2e)
-    diagk = lib.einsum('ijji->ij', h2e)
+    diagj = numpy.einsum('iijj->ij', h2e)
+    diagk = numpy.einsum('ijji->ij', h2e)
     for i in range(ndets):
         stri = strs[i]
         occs = str2orblst(stri, norb)[0]
@@ -242,41 +242,50 @@ def c_contract(self,h1e,h2e,hdiag,civec,strs,nelec):
                    ci1.ctypes.data_as(ctypes.c_void_p))
     return ci1
 
-# TODO: Add core/core-valence contribution
-# TODO: to slow write in C
-def make_rdm1(self,strs,civec,norb):
+def make_rdm1(self,civec,strs,norb,nelec):
     ndets = strs.shape[0]
+    strs = numpy.asarray(strs, order='C')
+    civec = numpy.asarray(civec, order='C')
     rdm1 = numpy.zeros((norb,norb), dtype=numpy.complex128)
-    for ip in range(ndets):
-        stri = strs[ip]
-        occs = str2orblst(stri, norb)[0]
-        ci2 = civec[ip] * civec[ip].conj()
-        for k in occs:
-            rdm1[k,k] += ci2
-        for jp in range(ip+1):
-            strj = strs[jp]
-            des, cre = str_diff(stri, strj)
-            if (len(des) == 1):
-                i,a = des[0], cre[0]
-                ci2 = civec[ip] * civec[jp].conj()
-                rdm1[i,a] += ci2
-                rdm1[a,i] += rdm1[i,a].conj()
-            else:
-                continue
+
+    libci.rdm1(ctypes.c_int(norb), 
+               ctypes.c_int(nelec), 
+               strs.ctypes.data_as(ctypes.c_void_p), 
+               civec.ctypes.data_as(ctypes.c_void_p), 
+               ctypes.c_ulonglong(ndets), 
+               rdm1.ctypes.data_as(ctypes.c_void_p))
     return rdm1
+
+def make_rdm12(self,civec,strs,norb,nelec):
+    ndets = strs.shape[0]
+    strs = numpy.asarray(strs, order='C')
+    civec = numpy.asarray(civec, order='C')
+    rdm1 = numpy.zeros((norb,norb), dtype=numpy.complex128)
+    rdm2 = numpy.zeros((norb,norb,norb,norb), dtype=numpy.complex128)
+
+    libci.rdm12(ctypes.c_int(norb), 
+                ctypes.c_int(nelec), 
+                strs.ctypes.data_as(ctypes.c_void_p), 
+                civec.ctypes.data_as(ctypes.c_void_p), 
+                ctypes.c_ulonglong(ndets), 
+                rdm1.ctypes.data_as(ctypes.c_void_p),
+                rdm2.ctypes.data_as(ctypes.c_void_p))
+    return rdm1,rdm2.transpose(0,2,1,3)
 
 if __name__ == '__main__':
     import time
-    from pyscf import gto, scf, x2c, ao2mo
+    from pyscf import gto, scf, x2c, ao2mo, mcscf
     from pyscf.tools.dump_mat import dump_tri
+
+    name = 'slater'
     mol = gto.Mole()
-    mol.basis = 'sto-6g'
+    mol.basis = 'dzp-dk'
     mol.atom = '''
-N      0.000000      0.000000      0.000000
-N      0.000000      0.000000      1.100000
+    H 0.0 0.0 0.00
+    H 0.0 0.0 0.75
     '''
-#Li      0.000000      0.000000      1.371504
-#Li      0.000000      0.000000     -1.371504
+    #Pb 0.0 0.0 0.00
+    #O  0.0 0.0 1.922
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
@@ -284,19 +293,20 @@ N      0.000000      0.000000      1.100000
     mol.build()
 
     mf = x2c.RHF(mol)
+    mf.chkfile = name+'.chk'
     mf.with_x2c.basis = 'unc-ano'
     dm = mf.get_init_guess() + 0.1j
-    mf.kernel(dm)
+    ehf = mf.kernel(dm)
+    coeff = mf.mo_coeff
 
     lib.logger.TIMER_LEVEL = 3
 
-    ncore = 4
+    ncore = 0
     nelec = mol.nelectron - ncore
     e_core = mol.energy_nuc() 
-    nao, nmo = mf.mo_coeff.shape
-    nvir = 0
-    norb = nmo - ncore - nvir
-    coeff = mf.mo_coeff
+    nao, nmo = coeff.shape
+    norb = 20
+    nvir = nmo - ncore - norb
     lib.logger.info(mf, '\n *** A simple relativistic CI module')
     lib.logger.info(mf, 'Number of occupied core 2C spinors %s', ncore)
     lib.logger.info(mf, 'Number of virtual core 2C spinors %s', nvir)
@@ -326,26 +336,17 @@ N      0.000000      0.000000      1.100000
     orb_list = list(range(norb))
     t1 = (time.clock(), time.time())
     strs = make_strings(mf,orb_list,nelec) 
-    lib.logger.timer(mf,'Strings build', *t1)
+    lib.logger.timer(mf,'det strings build', *t1)
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
-    #h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
     hdiag = numpy.zeros(ndets, dtype=numpy.complex128)
     t2 = (time.clock(), time.time())
     hdiag = make_hdiag(mf,h1e,eri_mo,hdiag,strs) 
     lib.logger.timer(mf,'<i|H|i> build', *t2)
 
     t3 = (time.clock(), time.time())
-    #h = make_hoffdiag(mf,h1e,eri_mo,h,strs)
-    #lib.logger.timer(mf,'<i|H|j> build', *t3)
-    #dump_tri(mf.stdout,h,ncol=15,digits=4)
-    #ci0 = numpy.zeros(ndets, dtype=numpy.complex128)
-    #ci0[0] = 1.0
-    numpy.random.seed()
-    ci0 = numpy.random.uniform(low=1e-3,high=1e-2,size=ndets)
-    ci0 = ci0.astype(numpy.complex128)
-    ci0[0] = 0.99
-    ci0 *= 1./numpy.linalg.norm(ci0)
+    ci0 = numpy.zeros(ndets, dtype=numpy.complex128)
+    ci0[0] = 1.0
     def hop(c):
         #hc = contract(mf,h1e,eri_mo,hdiag,c,strs)
         hc = c_contract(mf,h1e,eri_mo,hdiag,c,strs,nelec)
@@ -354,42 +355,63 @@ N      0.000000      0.000000      1.100000
     precond = lambda x, e, *args: x/(hdiag-e+level_shift)
 
     t4 = (time.clock(), time.time())
-    #e,c = numpy.linalg.eigh(h)
     nthreads = lib.num_threads()
     conv_tol = 1e-12
     lindep = 1e-14
     max_cycle = 100
-    max_space = 12
+    max_space = 14
     lessio = False
-    max_memory = 2000
+    max_memory = 4000
     follow_state = False 
     nroots = 1
-    #with lib.with_omp_threads(nthreads):
-    e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep)
-                           #max_cycle=max_cycle, max_space=max_space, max_memory=max_memory, 
-                           #dot=numpy.dot, nroots=nroots, lessio=lessio, verbose=mf.verbose,
-                           #follow_state=follow_state)
-    #lib.logger.timer(mf,'<i|H|j> diagonalization', *t4)
+    with lib.with_omp_threads(nthreads):
+        e, c = lib.davidson(hop, ci0, precond, tol=conv_tol, lindep=lindep,
+                            max_cycle=max_cycle, max_space=max_space, max_memory=max_memory, 
+                            dot=numpy.dot, nroots=nroots, lessio=lessio, verbose=mf.verbose,
+                            follow_state=follow_state)
     lib.logger.timer(mf,'<i|H|j> Davidson', *t4)
     e += e_core
     lib.logger.info(mf, 'Core energy %s', e_core)
-    #lib.logger.info(mf, 'Ground state energy %s', e[0])
     lib.logger.info(mf, 'Ground state energy %s', e)
-    #lib.logger.info(mf, 'Ground state civec %s', c[:,0])
-    #norm = numpy.einsum('i,i->',c[:,0].conj(),c[:,0])
+    lib.logger.info(mf, 'Correlation energy %s', (e-ehf))
+    #lib.logger.info(mf, 'Ground state civec %s', c)
     norm = numpy.einsum('i,i->',c.conj(),c)
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
     lib.logger.timer(mf,'CI build', *t0)
 
     t0 = (time.clock(), time.time())
-    #rdm1 = make_rdm1(mf,strs,c[:,0],norb)
-    #rdm1 = make_rdm1(mf,strs,c,norb)
+    rdm1 = make_rdm1(mf,c,strs,norb,nelec)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
-    #print rdm1
     #nelec = numpy.einsum('ii->', rdm1)
     #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
-    #lib.logger.timer(mf,'1-RDM build', *t0)
+    lib.logger.timer(mf,'1-RDM build', *t0)
 
-    #nelec = mol.nelectron - ncore
-    #c_contract(mf,h1e,eri_mo,hdiag,ci0,strs,nelec) 
+    #natocc, natorb = numpy.linalg.eigh(rdm1)
+    #natorb = numpy.dot(mf.mo_coeff, natorb)
+    #nelec = natocc.sum()
+    #lib.logger.info(mf, 'Natural occupations active space %s', natocc)
+    #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+
+    t0 = (time.clock(), time.time())
+    rdm1, rdm2 = make_rdm12(mf,c,strs,norb,nelec)
+    #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
+    rdm1_check = numpy.einsum('ijkk->ij', rdm2)
+    norm = numpy.linalg.norm(rdm1-rdm1_check)
+    lib.logger.info(mf, 'Diff in 1-RDM %s', norm)
+    nelec = numpy.einsum('ii->', rdm1_check)
+    lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+    lib.logger.timer(mf,'1/2-RDM build', *t0)
+
+    #TODO:include core/core-valence contribution
+    #t0 = (time.clock(), time.time())
+    #hcore = mf.get_hcore()
+    #h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
+    #eri_mo = ao2mo.kernel(mol, coeff[:,:norb], compact=False, intor='int2e_spinor')
+    #eri_mo = eri_mo.reshape(norb,norb,norb,norb)
+    #e_core = mol.energy_nuc() 
+    #e1 = numpy.einsum('ij,ji->', rdm1, h1e)
+    #e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)
+    #et = e1+e2*0.5+e_core
+    #lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
+    #lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
