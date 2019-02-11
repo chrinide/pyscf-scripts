@@ -8,7 +8,7 @@ import ctypes
 import signal
 from functools import reduce
 
-from pyscf import scf, lib, ao2mo
+from pyscf import lib
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -65,10 +65,10 @@ def cre_des_sign(p, q, string0):
 
 def print_dets(self,strs):
     ndets = strs.shape[0]
-    logger.info(self, '*** Printing list of determinants')
-    logger.info(self, 'Number of determinants: %s', ndets)
+    lib.logger.info(self, '*** Printing list of determinants')
+    lib.logger.info(self, 'Number of determinants: %s', ndets)
     for i in range(ndets):
-        logger.info(self,'Det %d %s' % (i,bin(strs[i])))
+        lib.logger.info(self,'Det %d %s' % (i,bin(strs[i])))
     return self
 
 def make_strings(self,orb_list,nelec):
@@ -279,10 +279,10 @@ if __name__ == '__main__':
 
     name = 'slater'
     mol = gto.Mole()
-    mol.basis = 'dzp-dk'
+    mol.basis = 'sto-6g'
     mol.atom = '''
-    H 0.0 0.0 0.00
-    H 0.0 0.0 0.75
+    Li 0.0 0.0 0.00
+    LI 0.0 0.0 2.25
     '''
     #Pb 0.0 0.0 0.00
     #O  0.0 0.0 1.922
@@ -386,16 +386,16 @@ if __name__ == '__main__':
     #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
     lib.logger.timer(mf,'1-RDM build', *t0)
 
-    #natocc, natorb = numpy.linalg.eigh(rdm1)
+    natocc, natorb = numpy.linalg.eigh(rdm1)
     #natorb = numpy.dot(mf.mo_coeff, natorb)
     #nelec = natocc.sum()
-    #lib.logger.info(mf, 'Natural occupations active space %s', natocc)
+    lib.logger.info(mf, 'Natural occupations active space %s', natocc)
     #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
 
     t0 = (time.clock(), time.time())
     rdm1, rdm2 = make_rdm12(mf,c,strs,norb,nelec)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
-    rdm1_check = numpy.einsum('ijkk->ij', rdm2)
+    rdm1_check = numpy.einsum('ijkk->ij', rdm2) / (nelec-1)
     norm = numpy.linalg.norm(rdm1-rdm1_check)
     lib.logger.info(mf, 'Diff in 1-RDM %s', norm)
     nelec = numpy.einsum('ii->', rdm1_check)
@@ -403,15 +403,23 @@ if __name__ == '__main__':
     lib.logger.timer(mf,'1/2-RDM build', *t0)
 
     #TODO:include core/core-valence contribution
-    #t0 = (time.clock(), time.time())
-    #hcore = mf.get_hcore()
-    #h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
-    #eri_mo = ao2mo.kernel(mol, coeff[:,:norb], compact=False, intor='int2e_spinor')
-    #eri_mo = eri_mo.reshape(norb,norb,norb,norb)
-    #e_core = mol.energy_nuc() 
-    #e1 = numpy.einsum('ij,ji->', rdm1, h1e)
-    #e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)
-    #et = e1+e2*0.5+e_core
-    #lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
-    #lib.logger.timer(mf,'1/2-RDM energy build', *t0)
+    t0 = (time.clock(), time.time())
+    hcore = mf.get_hcore()
+    h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
+    eri_mo = ao2mo.kernel(mol, coeff[:,:norb], compact=False, intor='int2e_spinor')
+    eri_mo = eri_mo.reshape(norb,norb,norb,norb)
+    e_core = mol.energy_nuc() 
+    e1 = numpy.einsum('ij,ji->', rdm1, h1e)
+    e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)*0.5
+    et = e1+e2+e_core
+    lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
+    lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
+    myhf = scf.RHF(mol)
+    myhf.verbose = 0
+    myhf.kernel()
+    
+    # 6 orbitals, 8 electrons
+    mycas = mcscf.CASCI(myhf, 10, 6)
+    mycas.verbose = 4
+    mycas.kernel()
