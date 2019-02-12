@@ -72,21 +72,6 @@ def print_dets(self,strs):
     return self
 
 def make_strings(self,orb_list,nelec):
-    '''Generate string from the given orbital list.
-
-    Returns:
-        list of int64.  One int64 element represents one string in binary format.
-        The binary format takes the convention that the one bit stands for one
-        orbital, bit-1 means occupied and bit-0 means unoccupied.  The lowest
-        (right-most) bit corresponds to the lowest orbital in the orb_list.
-
-    Exampels:
-
-    >>> [bin(x) for x in make_strings((0,1,2,3),2)]
-    [0b11, 0b101, 0b110, 0b1001, 0b1010, 0b1100]
-    >>> [bin(x) for x in make_strings((3,1,0,2),2)]
-    [0b1010, 0b1001, 0b11, 0b1100, 0b110, 0b101]
-    '''
     orb_list = list(orb_list)
     assert(nelec >= 0)
     if nelec == 0:
@@ -127,29 +112,28 @@ def make_hdiag(self,h1e,h2e,h,strs):
         h[i] = e1 + e2*0.5
     return h
 
-def c_make_hdiag(self,h1e,h2e,hdiag,strs,nelec):
-    ndets = strs.shape[0]
-    norb = h1e.shape[0]
-    diagj = lib.einsum('iijj->ij', h2e)
-    diagk = lib.einsum('ijji->ij', h2e)
-    h1e = numpy.asarray(h1e, order='C')
-    diagj = numpy.asarray(diagj, order='C')
-    diagk = numpy.asarray(diagk, order='C')
-    hdiag = numpy.asarray(hdiag, order='C')
-    strs = numpy.asarray(strs, order='C')
+#def c_make_hdiag(self,h1e,h2e,hdiag,strs,nelec):
+#    ndets = strs.shape[0]
+#    norb = h1e.shape[0]
+#    diagj = lib.einsum('iijj->ij', h2e)
+#    diagk = lib.einsum('ijji->ij', h2e)
+#    h1e = numpy.asarray(h1e, order='C')
+#    diagj = numpy.asarray(diagj, order='C')
+#    diagk = numpy.asarray(diagk, order='C')
+#    hdiag = numpy.asarray(hdiag, order='C')
+#    strs = numpy.asarray(strs, order='C')
+#
+#    libci.diagonal(h1e.ctypes.data_as(ctypes.c_void_p), 
+#                   diagj.ctypes.data_as(ctypes.c_void_p), 
+#                   diagk.ctypes.data_as(ctypes.c_void_p), 
+#                   ctypes.c_int(norb), 
+#                   ctypes.c_int(nelec), 
+#                   strs.ctypes.data_as(ctypes.c_void_p), 
+#                   ctypes.c_ulonglong(ndets), 
+#                   hdiag.ctypes.data_as(ctypes.c_void_p)) 
+#
+#    return hdiag
 
-    libci.diagonal(h1e.ctypes.data_as(ctypes.c_void_p), 
-                   diagj.ctypes.data_as(ctypes.c_void_p), 
-                   diagk.ctypes.data_as(ctypes.c_void_p), 
-                   ctypes.c_int(norb), 
-                   ctypes.c_int(nelec), 
-                   strs.ctypes.data_as(ctypes.c_void_p), 
-                   ctypes.c_ulonglong(ndets), 
-                   hdiag.ctypes.data_as(ctypes.c_void_p)) 
-
-    return hdiag
-
-# TODO: Write in C code to speed up
 def make_hoffdiag(self,h1e,h2e,h,strs):
     ndets = strs.shape[0]
     norb = h1e.shape[0]
@@ -336,6 +320,7 @@ if __name__ == '__main__':
     orb_list = list(range(norb))
     t1 = (time.clock(), time.time())
     strs = make_strings(mf,orb_list,nelec) 
+    print_dets(mf,strs)
     lib.logger.timer(mf,'det strings build', *t1)
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)

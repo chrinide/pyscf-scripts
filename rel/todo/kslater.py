@@ -186,6 +186,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                     i,a = desp[0], crep[0]
                     j,b = desn[0], cren[0]
                     v = h2e[a,i,b,j]
+                    print i,a,j,b,v
                     sign = cre_des_sign(a, i, strip)
                     sign*= cre_des_sign(b, j, strin)
                     h[ip,jp] = sign * v
@@ -262,6 +263,7 @@ if __name__ == '__main__':
     ndetsp = strsp.shape[0]
     ndetsn = strsn.shape[0]
     ndets = ndetsp*ndetsn
+    #ndets += 2
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
     strs = numpy.zeros((ndets,2), dtype=numpy.int64)
     k = 0
@@ -270,6 +272,13 @@ if __name__ == '__main__':
             strs[k,0] = strsp[i]
             strs[k,1] = strsn[j]
             k += 1
+    #strsp = make_strings(mf,(0,3),nelec) 
+    #strsn = make_strings(mf,(1,2),nelec) 
+    #print bin(strsp[0])
+    #strs[4,0] = strsp[0]
+    #strs[4,1] = 0
+    #strs[5,1] = 0
+    #strs[5,1] = strsn[0]
     print_dets(mf,strs) 
 
     ci_idx = ncore + numpy.arange(norb)
@@ -280,8 +289,9 @@ if __name__ == '__main__':
     h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
     h = make_hdiag(mf,h1e,eri_mo,h,strs) 
     h = make_hoffdiag(mf,h1e,eri_mo,h,strs) 
-    dump_tri(mf.stdout,h,ncol=15,digits=4)
-    print h[0,0]+e_core
+    #dump_tri(mf.stdout,h,ncol=15,digits=4)
+    #print h
+    #print h[0,0]+e_core
     e, c = numpy.linalg.eigh(h)
     e += e_core
     lib.logger.info(mf, 'Core energy %s', e_core)
@@ -291,10 +301,10 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
     lib.logger.info(mf, 'CI ground state civec %s', c[:,0])
 
-    from pyscf import mcscf
-    myhf = scf.RHF(mol).x2c()
-    myhf.verbose = 0
-    myhf.kernel()
-    mycas = mcscf.CASCI(myhf, 2, 2)
-    mycas.verbose = 4
-    mycas.kernel()
+    #from pyscf import mcscf
+    #myhf = scf.RHF(mol).x2c()
+    #myhf.verbose = 0
+    #myhf.kernel()
+    #mycas = mcscf.CASCI(myhf, 2, 2)
+    #mycas.verbose = 4
+    #mycas.kernel()

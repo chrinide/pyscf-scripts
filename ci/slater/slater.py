@@ -235,7 +235,7 @@ class det(lib.StreamObject):
         h = make_hdiag(self, h)
         h = make_hoffdiag(self, h)
         e,c = numpy.linalg.eigh(h)
-        print h
+        print h, self.h2e[0,1,0,1]
         print e[0]+self.e_core
         return self
 
@@ -287,6 +287,6 @@ if __name__ == '__main__':
     dets.model = 'fci'
     dets.kernel()
 
-    mc = mcscf.CASCI(mf,2,2)
-    mc.kernel()
+    #mc = mcscf.CASCI(mf,2,2)
+    #mc.kernel()
 
