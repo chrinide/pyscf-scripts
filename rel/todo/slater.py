@@ -281,8 +281,8 @@ if __name__ == '__main__':
     mol = gto.Mole()
     mol.basis = 'sto-6g'
     mol.atom = '''
-    Li 0.0 0.0 0.00
-    LI 0.0 0.0 2.25
+    H 0.0 0.0 0.00
+    H 0.0 0.0 9.75
     '''
     #Pb 0.0 0.0 0.00
     #O  0.0 0.0 1.922
@@ -302,10 +302,10 @@ if __name__ == '__main__':
     lib.logger.TIMER_LEVEL = 3
 
     ncore = 0
+    norb = 4
     nelec = mol.nelectron - ncore
     e_core = mol.energy_nuc() 
     nao, nmo = coeff.shape
-    norb = 20
     nvir = nmo - ncore - norb
     lib.logger.info(mf, '\n *** A simple relativistic CI module')
     lib.logger.info(mf, 'Number of occupied core 2C spinors %s', ncore)
@@ -420,6 +420,6 @@ if __name__ == '__main__':
     myhf.kernel()
     
     # 6 orbitals, 8 electrons
-    mycas = mcscf.CASCI(myhf, 10, 6)
+    mycas = mcscf.CASCI(myhf, 2, 2)
     mycas.verbose = 4
     mycas.kernel()
