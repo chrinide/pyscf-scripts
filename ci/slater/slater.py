@@ -15,25 +15,9 @@ def str2orblst(string, norb):
     vir = []
     occ.extend([x for x in find1(string)])
     for i in range(norb): 
-        if not (string & numpy.uint64(1<<i)):
+        if not (string & (1<<i)):
             vir.append(i)
     return occ, vir
-
-def orblst2str(lst):
-    string = numpy.uint64(0)
-    for idx in lst:
-        string ^= numpy.uint64(1<<idx)
-    return string
-
-def addorb(string, idx):
-    string0 = string
-    string0 |= numpy.uint64(1<<idx)
-    return string0
-
-def rmorb(string, idx):
-    string0 = string
-    string0 &= ~numpy.uint64((1<<idx))
-    return string0
 
 def str_diff(string0, string1):
     des_string0 = []
@@ -53,12 +37,12 @@ def cre_des_sign(p, q, string0):
     if p == q:
         return 1
     else:
-        if (string0 & numpy.uint64(1<<p)) or (not (string0 & numpy.uint64(1<<q))):
+        if (string0 & (1<<p)) or (not (string0 & (1<<q))):
             return 0
         elif p > q:
-            mask = numpy.uint64(1 << p) - numpy.uint64(1 << (q+1))
+            mask = (1 << p) - (1 << (q+1))
         else:
-            mask = numpy.uint64(1 << q) - numpy.uint64(1 << (p+1))
+            mask = (1 << q) - (1 << (p+1))
         return (-1) ** bin(string0 & mask).count('1')
 
 def print_dets(self):
@@ -68,116 +52,6 @@ def print_dets(self):
         logger.info(self,'Det %d alpha %s, beta %s' % \
         (i,bin(self.strs[i,0]),bin(self.strs[i,1])))
     return self
-
-def gen_cis(self):
-    neleca = self.nelec[0]
-    nocca = self.nelec[0]
-    nvira = self.norb - self.nelec[0]
-    nelecb = self.nelec[1]
-    noccb = self.nelec[1]
-    nvirb = self.norb - self.nelec[1]
-    hf_stra = int('1'*neleca, 2)
-    hf_strb = int('1'*nelecb, 2)
-    ndetsa = neleca*nvira
-    ndetsb = nelecb*nvirb
-
-    self.ndets = ndetsa + ndetsb + 1
-    logger.info(self, 'Number of determinants: %s', self.ndets)
-    self.strs = numpy.empty((self.ndets,2), dtype=numpy.uint64)
-    self.strs[0,0] = hf_stra
-    self.strs[0,1] = hf_strb
-    k = 1
-    alphao, alphau = str2orblst(self.strs[0,0], self.norb)
-    for i in alphao:
-        for j in alphau:
-            stra = rmorb(self.strs[0,0], i)
-            stra = addorb(stra, j)
-            self.strs[k,0] = stra
-            self.strs[k,1] = hf_strb
-            k += 1
-    betao, betau = str2orblst(self.strs[0,1], self.norb)
-    for i in betao:
-        for j in betau:
-            strb = rmorb(self.strs[0,1], i)
-            strb = addorb(strb, j)
-            self.strs[k,0] = hf_stra
-            self.strs[k,1] = strb
-            k += 1
-
-    return self
-
-# TODO: recheck the dets still experimental
-def gen_cisd(self):
-    neleca = self.nelec[0]
-    nocca = self.nelec[0]
-    nvira = self.norb - self.nelec[0]
-    nelecb = self.nelec[1]
-    noccb = self.nelec[1]
-    nvirb = self.norb - self.nelec[1]
-    hf_stra = int('1'*neleca, 2)
-    hf_strb = int('1'*nelecb, 2)
-
-    ndet_s = (nocca*nvira)+(noccb+nvirb)
-    ndet_d = num_strings(nocca,2) * num_strings(nvira, 2) * \
-             num_strings(noccb,2) * num_strings(nvirb, 2) + nocca*noccb * nvira*nvirb
-    self.ndets = ndet_s + ndet_d
-
-    logger.info(self, 'Number of determinants: %s', self.ndets)
-    self.strs = numpy.empty((self.ndets,2), dtype=numpy.uint64)
-    self.strs[0,0] = hf_stra
-    self.strs[0,1] = hf_strb
-
-    kk = 1
-    alphao, alphau = str2orblst(self.strs[0,0], self.norb)
-    betao, betau = str2orblst(self.strs[0,1], self.norb)
-
-    for i in alphao:
-        for j in alphau:
-            stra = rmorb(self.strs[0,0], i)
-            stra = addorb(stra, j)
-            self.strs[kk,0] = stra
-            self.strs[kk,1] = hf_strb
-            kk += 1
-
-    for i in betao:
-        for j in betau:
-            strb = rmorb(self.strs[0,1], i)
-            strb = addorb(strb, j)
-            self.strs[kk,0] = hf_stra
-            self.strs[kk,1] = strb
-            kk += 1
-
-    for i in alphao:
-        for j in alphau:
-            for k in betao:
-                for l in betau:
-                    stra = rmorb(self.strs[0,0], i)
-                    stra = addorb(stra, j)
-                    strb = rmorb(self.strs[0,1], k)
-                    strb = addorb(strb, l)
-                    self.strs[kk,0] = stra
-                    self.strs[kk,1] = strb
-                    kk += 1
-
-    for i1, i2 in combinations(alphao, 2):
-        for j1, j2 in combinations(alphau, 2):
-            stra = rmorb(self.strs[0,0], i1)
-            stra = addorb(stra, i2)
-            stra = rmorb(stra, j1)
-            stra = addorb(stra, j2)
-            self.strs[kk,0] = stra
-            self.strs[kk,1] = hf_strb 
-            kk += 1
-
-    for k1, k2 in combinations(betao, 2):
-        for l1, l2 in combinations(betau, 2):
-            strb = rmorb(self.strs[0,1], k1)
-            strb = addorb(strb, k2)
-            strb = rmorb(strb, l1)
-            strb = addorb(strb, l2)
-            self.strs[kk,0] = hf_strb
-            self.strs[kk,1] = strb 
-            kk += 1
 
 def make_hdiag(self,h):
     diagj = numpy.einsum('iijj->ij', self.h2e)
@@ -217,7 +91,6 @@ def make_hoffdiag(self,h):
                     for k in occsb:
                         fai += self.h2e[k,k,a,i]
                     sign = cre_des_sign(a, i, stria)
-                    #print "a", ip,jp,i,a,fai,sign
                     h[ip,jp] = sign * fai
                     h[jp,ip] = h[ip,jp]
 # beta ->beta
@@ -231,7 +104,6 @@ def make_hoffdiag(self,h):
                     for k in occsa:
                         fai += self.h2e[k,k,a,i]
                     sign = cre_des_sign(a, i, strib)
-                    #print "b", ip,jp,i,a,fai,sign
                     h[ip,jp] = sign * fai
                     h[jp,ip] = h[ip,jp]
             else:
@@ -251,7 +123,6 @@ def make_hoffdiag(self,h):
                         v = self.h2e[a,i,b,j] - self.h2e[a,j,b,i]
                         sign = cre_des_sign(b, j, stria)
                         sign*= cre_des_sign(a, i, stria)
-                    #print "aa", i,a,v,sign
                     h[ip,jp] = sign * v
                     h[jp,ip] = h[ip,jp]
 # beta ,beta ->beta ,beta
@@ -266,7 +137,6 @@ def make_hoffdiag(self,h):
                         v = self.h2e[a,i,b,j] - self.h2e[a,j,b,i]
                         sign = cre_des_sign(b, j, strib)
                         sign*= cre_des_sign(a, i, strib)
-                    #print "bb", i,a,v,sign
                     h[ip,jp] = sign * v
                     h[jp,ip] = h[ip,jp]
 # alpha,beta ->alpha,beta
@@ -276,13 +146,35 @@ def make_hoffdiag(self,h):
                     v = self.h2e[a,i,b,j]
                     sign = cre_des_sign(a, i, stria)
                     sign*= cre_des_sign(b, j, strib)
-                    #print "ab", ip,jp,i,a,v,sign
                     h[ip,jp] = 1*sign * v
                     h[jp,ip] = h[ip,jp]
-    #print self.h1e
-    #h[abs(h) < 1e-12] = 0
-    #print h                    
     return h
+
+def make_strings(self,orb_list,nelec):
+    orb_list = list(orb_list)
+    assert(nelec >= 0)
+    if nelec == 0:
+        return numpy.asarray([0], dtype=numpy.int64)
+    elif nelec > len(orb_list):
+        return numpy.asarray([], dtype=numpy.int64)
+    def gen_str_iter(orb_list, nelec):
+        if nelec == 1:
+            res = [(1<<i) for i in orb_list]
+        elif nelec >= len(orb_list):
+            n = 0
+            for i in orb_list:
+                n = n | (1<<i)
+            res = [n]
+        else:
+            restorb = orb_list[:-1]
+            thisorb = 1 << orb_list[-1]
+            res = gen_str_iter(restorb, nelec)
+            for n in gen_str_iter(restorb, nelec-1):
+                res.append(n | thisorb)
+        return res
+    strings = gen_str_iter(orb_list, nelec)
+    assert(strings.__len__() == num_strings(len(orb_list),nelec))
+    return numpy.asarray(strings, dtype=numpy.int64)
     
 class det(lib.StreamObject):
     def __init__(self, mf, nelec, norb):
@@ -292,7 +184,7 @@ class det(lib.StreamObject):
         self.mol = mf.mol
         self.nelec = nelec
         self.norb = norb
-        self.model = 'cis'
+        self.model = 'fci'
 ##################################################
 # don't modify the following attributes, they are not input options
         self.ncore = None
@@ -315,10 +207,20 @@ class det(lib.StreamObject):
         return self
 
     def gen_strs(self):
-        if (self.model == 'cis'):
-            gen_cis(self)
-        elif (self.model == 'cisd'):
-            gen_cisd(self)
+        if (self.model == 'fci'):
+            orb_list = self.ncore+numpy.arange(self.norb)
+            strsa = make_strings(self,orb_list,self.nelec[0]) 
+            strsb = make_strings(self,orb_list,self.nelec[0]) 
+            ndeta = len(strsa)
+            ndetb = len(strsa)
+            self.ndets = ndeta*ndetb
+            self.strs = numpy.zeros((self.ndets,2), dtype=numpy.int64)
+            kk = 0
+            for i in range(ndeta):
+                for j in range(ndetb):
+                    self.strs[kk,0] = strsa[i]
+                    self.strs[kk,1] = strsb[j]
+                    kk += 1
         else:
             raise RuntimeError('''CIS only available at this moment''')
         eri_size = (self.norb**4)*8e-9
@@ -331,13 +233,10 @@ class det(lib.StreamObject):
     def build_h(self):
         h = numpy.zeros((self.ndets, self.ndets))
         h = make_hdiag(self, h)
-        h= make_hoffdiag(self, h)
+        h = make_hoffdiag(self, h)
         e,c = numpy.linalg.eigh(h)
+        print h
         print e[0]+self.e_core
-        #print c[:,0]
-        #print e[1]+self.e_core
-        #print c[:,1]
-        #print e+self.e_core
         return self
 
     def kernel(self):
@@ -368,10 +267,10 @@ class det(lib.StreamObject):
 if __name__ == '__main__':
     from pyscf import gto, scf, mcscf, tdscf
     mol = gto.Mole()
-    mol.basis = 'cc-pvdz'
+    mol.basis = 'sto-6g'
     mol.atom = '''
     H 0.0000  0.0000  0.0000
-    H 0.0000  0.0000  0.7500
+    H 0.0000  0.0000  9.7500
     '''
     mol.verbose = 4
     mol.spin = 0
@@ -379,19 +278,15 @@ if __name__ == '__main__':
     mol.symmetry = 1
     mol.build()
 
-    mf = scf.RHF(mol)
+    mf = scf.RHF(mol).x2c()
     mf.kernel()
 
-    #td = tdscf.TDA(mf)
-    #ex = td.kernel()[0]
-    #print ex
-
-    norb = 10
+    norb = 2
     nelec = (1,1)
     dets = det(mf,nelec,norb)
-    dets.model = 'cisd'
+    dets.model = 'fci'
     dets.kernel()
 
-    #mc = mcscf.CASCI(mf,2,2)
-    #mc.fcisolver.nroots = 2
-    #mc.kernel()
+    mc = mcscf.CASCI(mf,2,2)
+    mc.kernel()
+

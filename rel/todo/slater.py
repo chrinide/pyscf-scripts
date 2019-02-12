@@ -415,7 +415,8 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
     lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
-    myhf = scf.RHF(mol)
+    myhf = scf.RHF(mol).x2c()
+    myhf.with_x2c.basis = 'unc-ano'
     myhf.verbose = 0
     myhf.kernel()
     

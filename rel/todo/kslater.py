@@ -134,7 +134,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                         fai += h2e[k,k,a,i]
                     sign = cre_des_sign(a, i, strip)
                     h[ip,jp] = sign * fai
-                    h[jp,ip] = h[ip,jp]#.conj()
+                    h[jp,ip] = h[ip,jp].conj()
 # n->n
                 elif len(desp) == 0:
                     i,a = desn[0], cren[0]
@@ -147,7 +147,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                         fai += h2e[k,k,a,i]
                     sign = cre_des_sign(a, i, strin)
                     h[ip,jp] = sign * fai
-                    h[jp,ip] = h[ip,jp]#.conj()
+                    h[jp,ip] = h[ip,jp].conj()
             else:
 # p,p->p,p
                 if len(desn) == 0:
@@ -166,7 +166,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                         sign = cre_des_sign(b, j, strip)
                         sign*= cre_des_sign(a, i, strip)
                     h[ip,jp] = sign * v
-                    h[jp,ip] = h[ip,jp]#.conj()
+                    h[jp,ip] = h[ip,jp].conj()
 # n,n->n,n
                 elif len(desp) == 0:
                     i,j = desn
@@ -180,7 +180,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                         sign = cre_des_sign(b, j, strin)
                         sign*= cre_des_sign(a, i, strin)
                     h[ip,jp] = sign * v
-                    h[jp,ip] = h[ip,jp]#.conj()
+                    h[jp,ip] = h[ip,jp].conj()
 # p,n->p,n
                 else:
                     i,a = desp[0], crep[0]
@@ -189,7 +189,7 @@ def make_hoffdiag(self,h1e,h2e,h,strs):
                     sign = cre_des_sign(a, i, strip)
                     sign*= cre_des_sign(b, j, strin)
                     h[ip,jp] = sign * v
-                    h[jp,ip] = h[ip,jp]#.conj()
+                    h[jp,ip] = h[ip,jp].conj()
     return h
 
 if __name__ == '__main__':
@@ -280,6 +280,8 @@ if __name__ == '__main__':
     h = numpy.zeros((ndets,ndets), dtype=numpy.complex128)
     h = make_hdiag(mf,h1e,eri_mo,h,strs) 
     h = make_hoffdiag(mf,h1e,eri_mo,h,strs) 
+    dump_tri(mf.stdout,h,ncol=15,digits=4)
+    print h[0,0]+e_core
     e, c = numpy.linalg.eigh(h)
     e += e_core
     lib.logger.info(mf, 'Core energy %s', e_core)
@@ -290,7 +292,7 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'CI ground state civec %s', c[:,0])
 
     from pyscf import mcscf
-    myhf = scf.RHF(mol)
+    myhf = scf.RHF(mol).x2c()
     myhf.verbose = 0
     myhf.kernel()
     mycas = mcscf.CASCI(myhf, 2, 2)
