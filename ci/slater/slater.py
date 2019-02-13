@@ -2,10 +2,7 @@
 
 import numpy
 import math
-from itertools import combinations
-
-from pyscf import scf, lib, ao2mo
-from pyscf.lib import logger
+from pyscf import lib, ao2mo
 
 def find1(s):
     return [i for i,x in enumerate(bin(s)[2:][::-1]) if x is '1']
@@ -44,14 +41,6 @@ def cre_des_sign(p, q, string0):
         else:
             mask = (1 << q) - (1 << (p+1))
         return (-1) ** bin(string0 & mask).count('1')
-
-def print_dets(self):
-    logger.info(self, '*** Printing list of determinants')
-    logger.info(self, 'Number of determinants: %s', self.ndets)
-    for i in range(self.ndets):
-        logger.info(self,'Det %d alpha %s, beta %s' % \
-        (i,bin(self.strs[i,0]),bin(self.strs[i,1])))
-    return self
 
 def make_hdiag(self,h):
     diagj = numpy.einsum('iijj->ij', self.h2e)
@@ -175,6 +164,23 @@ def make_strings(self,orb_list,nelec):
     strings = gen_str_iter(orb_list, nelec)
     assert(strings.__len__() == num_strings(len(orb_list),nelec))
     return numpy.asarray(strings, dtype=numpy.int64)
+
+def tn_strs(self,norb,nelec,n):
+    if nelec < n or norb-nelec < n:
+        return numpy.zeros(0, dtype=numpy.int64)
+    occs_allow = numpy.asarray(make_strings(self,range(nelec),n)[::-1])
+    virs_allow = numpy.asarray(make_strings(self,range(nelec,norb),n))
+    hf_str = int('1'*nelec, 2)
+    tns = (hf_str | virs_allow.reshape(-1,1)) ^ occs_allow
+    return tns.ravel()
+
+def print_dets(self):
+    lib.logger.info(self, '*** Printing list of determinants')
+    lib.logger.info(self, 'Number of determinants: %s', self.ndets)
+    for i in range(self.ndets):
+        lib.logger.info(self,'Det %d alpha %s, beta %s' % \
+        (i,bin(self.strs[i,0]),bin(self.strs[i,1])))
+    return self
     
 class det(lib.StreamObject):
     def __init__(self, mf, nelec, norb):
@@ -196,14 +202,14 @@ class det(lib.StreamObject):
         self._keys = set(self.__dict__.keys())
 
     def dump_flags(self, verbose=None):
-        if self.verbose >= logger.WARN:
+        if self.verbose >= lib.logger.WARN:
             self.check_sanity()
-        logger.info(self, '\n *** A simple CI module')
-        logger.info(self, 'CI model: %s', self.model)
-        logger.info(self, 'Number of active electrons: %s', self.nelec)
-        logger.info(self, 'Active orbitals: %s', self.norb)
-        logger.info(self, 'Number of core orbitals: %s', self.ncore)
-        logger.info(self, 'Core energy: %s', self.e_core)
+        lib.logger.info(self, '\n *** A simple CI module')
+        lib.logger.info(self, 'CI model: %s', self.model)
+        lib.logger.info(self, 'Number of active electrons: %s', self.nelec)
+        lib.logger.info(self, 'Active orbitals: %s', self.norb)
+        lib.logger.info(self, 'Number of core orbitals: %s', self.ncore)
+        lib.logger.info(self, 'Core energy: %s', self.e_core)
         return self
 
     def gen_strs(self):
@@ -221,12 +227,18 @@ class det(lib.StreamObject):
                     self.strs[kk,0] = strsa[i]
                     self.strs[kk,1] = strsb[j]
                     kk += 1
+        #elif
+        #    strsa = tn_strs(self,self.norb,self.nelec[0],1) 
+        #    strsb = tn_strs(self,self.norb,self.nelec[1],1) 
+        #    self.ndets += 1
+        #    self.strs[kk,0] = int('1'*self.nelec[0], 2)
+        #    self.strs[kk,1] = int('1'*self.nelec[0], 2) 
         else:
-            raise RuntimeError('''CIS only available at this moment''')
+            raise RuntimeError('''FCI only available at this moment''')
         eri_size = (self.norb**4)*8e-9
         ham_size = (self.ndets+self.ndets**2)*8e-9
         tot_size = eri_size + 2.0*ham_size
-        logger.info(self, 'Estimated memoryi GB: %s', tot_size)
+        lib.logger.info(self, 'Estimated memoryi GB: %s', tot_size)
         print_dets(self)
         return self
 
@@ -235,8 +247,11 @@ class det(lib.StreamObject):
         h = make_hdiag(self, h)
         h = make_hoffdiag(self, h)
         e,c = numpy.linalg.eigh(h)
-        print h, self.h2e[0,1,0,1]
-        print e[0]+self.e_core
+        e += self.e_core
+        lib.logger.info(mf, 'Core energy %s', self.e_core)
+        lib.logger.info(mf, 'Ground state energy %s', e[0])
+        norm = numpy.einsum('i,i->',c[:,0],c[:,0])
+        lib.logger.info(mf, 'Norm of ground state civec %s', norm)
         return self
 
     def kernel(self):
@@ -287,6 +302,6 @@ if __name__ == '__main__':
     dets.model = 'fci'
     dets.kernel()
 
-    #mc = mcscf.CASCI(mf,2,2)
-    #mc.kernel()
+    mc = mcscf.CASCI(mf,2,2)
+    mc.kernel()
 

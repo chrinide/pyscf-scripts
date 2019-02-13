@@ -32,3 +32,25 @@ def kernel(h1e, g2e, norb, nelec, ecore=0):
     precond = lambda x, e, *args: x/(hdiag-e+1e-4)
     e, c = lib.davidson(hop, ci0.reshape(-1), precond)
     return e+ecore
+def make_occslst(orb_list, nelec):
+    orb_list = list(orb_list)
+    assert(nelec >= 0)
+    if nelec == 0:
+        return numpy.zeros((1,nelec), dtype=numpy.int32)
+    elif nelec > len(orb_list):
+        return numpy.zeros((0,nelec), dtype=numpy.int32)
+    def gen_occs_iter(orb_list, nelec):
+        if nelec == 1:
+            res = [[i] for i in orb_list]
+        elif nelec >= len(orb_list):
+            res = [orb_list]
+        else:
+            restorb = orb_list[:-1]
+            thisorb = orb_list[-1]
+            res = gen_occs_iter(restorb, nelec)
+            for n in gen_occs_iter(restorb, nelec-1):
+                res.append(n + [thisorb])
+        return res
+    occslst = gen_occs_iter(orb_list, nelec)
+    return numpy.asarray(occslst, dtype=numpy.int32)
+

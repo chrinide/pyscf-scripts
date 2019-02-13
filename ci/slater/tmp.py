@@ -120,11 +120,3 @@ def rmorb(string, idx):
     return string0
 
 
-def tn_strs(self,norb,nelec,n):
-    if nelec < n or norb-nelec < n:
-        return numpy.zeros(0, dtype=numpy.int64)
-    occs_allow = numpy.asarray(make_strings(self,range(nelec),n)[::-1])
-    virs_allow = numpy.asarray(make_strings(self,range(nelec,norb),n))
-    hf_str = int('1'*nelec, 2)
-    tns = (hf_str | virs_allow.reshape(-1,1)) ^ occs_allow
-    return tns.ravel()
