@@ -282,6 +282,7 @@ if __name__ == '__main__':
     dm = mf.get_init_guess() + 0.1j
     ehf = mf.kernel(dm)
     coeff = mf.mo_coeff
+    lib.logger.info(mf, 'MO energies %s', mf.mo_energy)
 
     lib.logger.TIMER_LEVEL = 3
 
@@ -400,6 +401,18 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
     lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
+    core_idx = numpy.arange(ncore)
+    core_dm = numpy.dot(coeff[:, core_idx], coeff[:, core_idx].conj().T)
+    dm = core_dm + reduce(numpy.dot, (coeff[:,ci_idx], rdm1, coeff[:,ci_idx].conj().T))
+    vj, vk = mf.get_jk(mol, dm)
+    fock = mf.get_hcore() + vj-vk#*.5
+    #print fock
+    #dump_tri(mf.stdout,fock,ncol=15,digits=4)
+    ci_idx = numpy.arange(ncore+norb)
+    fock = reduce(numpy.dot, (coeff[:,ci_idx].conj().T, fock, coeff[:,ci_idx]))
+    #print fock
+    dump_tri(mf.stdout,fock,ncol=15,digits=4)
+
     myhf = scf.RHF(mol).x2c()
     myhf.with_x2c.basis = 'unc-ano'
     myhf.verbose = 0
@@ -409,3 +422,11 @@ if __name__ == '__main__':
     mycas = mcscf.CASCI(myhf, 2, 2)
     mycas.verbose = 4
     mycas.kernel()
+    coeff = mycas.mo_coeff
+    norb = 2
+    ci_idx = numpy.arange(ncore+norb)
+    fock = mycas.get_fock()
+    #dump_tri(mf.stdout,fock,ncol=15,digits=4)
+    fock = reduce(numpy.dot, (coeff[:,ci_idx].conj().T, fock, coeff[:,ci_idx]))
+    dump_tri(mf.stdout,fock,ncol=15,digits=4)
+
