@@ -112,62 +112,6 @@ def make_hdiag(self,h1e,h2e,h,strs):
         h[i] = e1 + e2*0.5
     return h
 
-#def c_make_hdiag(self,h1e,h2e,hdiag,strs,nelec):
-#    ndets = strs.shape[0]
-#    norb = h1e.shape[0]
-#    diagj = lib.einsum('iijj->ij', h2e)
-#    diagk = lib.einsum('ijji->ij', h2e)
-#    h1e = numpy.asarray(h1e, order='C')
-#    diagj = numpy.asarray(diagj, order='C')
-#    diagk = numpy.asarray(diagk, order='C')
-#    hdiag = numpy.asarray(hdiag, order='C')
-#    strs = numpy.asarray(strs, order='C')
-#
-#    libci.diagonal(h1e.ctypes.data_as(ctypes.c_void_p), 
-#                   diagj.ctypes.data_as(ctypes.c_void_p), 
-#                   diagk.ctypes.data_as(ctypes.c_void_p), 
-#                   ctypes.c_int(norb), 
-#                   ctypes.c_int(nelec), 
-#                   strs.ctypes.data_as(ctypes.c_void_p), 
-#                   ctypes.c_ulonglong(ndets), 
-#                   hdiag.ctypes.data_as(ctypes.c_void_p)) 
-#
-#    return hdiag
-
-def make_hoffdiag(self,h1e,h2e,h,strs):
-    ndets = strs.shape[0]
-    norb = h1e.shape[0]
-    for ip in range(ndets):
-        for jp in range(ip):
-            stri = strs[ip]
-            strj = strs[jp]
-            des, cre = str_diff(stri, strj)
-            if (len(des) == 1):
-                i,a = des[0], cre[0]
-                occs = str2orblst(stri, norb)[0]
-                v = h1e[a,i]
-                for k in occs:
-                    v += h2e[k,k,a,i] - h2e[k,i,a,k]
-                sign = cre_des_sign(a, i, stri)
-                h[ip,jp] = sign * v
-                h[jp,ip] = h[ip,jp].conj()
-            elif (len(des) == 2):
-                i,j = des
-                a,b = cre
-                if a > j or i > b:
-                    v = h2e[a,j,b,i] - h2e[a,i,b,j]
-                    sign = cre_des_sign(b, i, stri)
-                    sign*= cre_des_sign(a, j, stri)
-                else:
-                    v = h2e[a,i,b,j] - h2e[a,j,b,i]
-                    sign = cre_des_sign(b, j, stri)
-                    sign*= cre_des_sign(a, i, stri)
-                h[ip,jp] = sign * v
-                h[jp,ip] = h[ip,jp].conj()
-            else:
-                continue
-    return h
-
 def contract(self,h1e,h2e,hdiag,civec,strs):
     ndets = strs.shape[0]
     norb = h1e.shape[0]
@@ -263,13 +207,11 @@ if __name__ == '__main__':
 
     name = 'slater'
     mol = gto.Mole()
-    mol.basis = 'sto-6g'
+    mol.basis = 'aug-cc-pvtz'
     mol.atom = '''
     H 0.0 0.0 0.00
     H 0.0 0.0 9.75
     '''
-    #Pb 0.0 0.0 0.00
-    #O  0.0 0.0 1.922
     mol.verbose = 4
     mol.spin = 0
     mol.charge = 0
@@ -279,10 +221,9 @@ if __name__ == '__main__':
     mf = x2c.RHF(mol)
     mf.chkfile = name+'.chk'
     mf.with_x2c.basis = 'unc-ano'
-    dm = mf.get_init_guess() + 0.1j
+    dm = mf.get_init_guess() + 0.0j
     ehf = mf.kernel(dm)
     coeff = mf.mo_coeff
-    lib.logger.info(mf, 'MO energies %s', mf.mo_energy)
 
     lib.logger.TIMER_LEVEL = 3
 
@@ -334,13 +275,10 @@ if __name__ == '__main__':
     ci0 = numpy.zeros(ndets, dtype=numpy.complex128)
     ci0[0] = 1.0
     def hop(c):
-        #hc = contract(mf,h1e,eri_mo,hdiag,c,strs)
         hc = c_contract(mf,h1e,eri_mo,hdiag,c,strs,nelec)
         return hc.ravel()
     level_shift = 0.01
     precond = lambda x, e, *args: x/(hdiag-e+level_shift)
-
-    t4 = (time.clock(), time.time())
     nthreads = lib.num_threads()
     conv_tol = 1e-12
     lindep = 1e-14
@@ -355,31 +293,29 @@ if __name__ == '__main__':
                             max_cycle=max_cycle, max_space=max_space, max_memory=max_memory, 
                             dot=numpy.dot, nroots=nroots, lessio=lessio, verbose=mf.verbose,
                             follow_state=follow_state)
-    lib.logger.timer(mf,'<i|H|j> Davidson', *t4)
+    lib.logger.timer(mf,'<i|H|j> Davidson', *t3)
     e += e_core
     lib.logger.info(mf, 'Core energy %s', e_core)
     lib.logger.info(mf, 'Ground state energy %s', e)
     lib.logger.info(mf, 'Correlation energy %s', (e-ehf))
-    #lib.logger.info(mf, 'Ground state civec %s', c)
+    lib.logger.info(mf, 'Ground state civec %s', c)
     norm = numpy.einsum('i,i->',c.conj(),c)
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
     lib.logger.timer(mf,'CI build', *t0)
 
-    t0 = (time.clock(), time.time())
-    rdm1 = make_rdm1(mf,c,strs,norb,nelec)
+    #t0 = (time.clock(), time.time())
+    #rdm1 = make_rdm1(mf,c,strs,norb,nelec)
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
     #nelec = numpy.einsum('ii->', rdm1)
     #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
-    lib.logger.timer(mf,'1-RDM build', *t0)
-
-    natocc, natorb = numpy.linalg.eigh(rdm1)
-    #natorb = numpy.dot(mf.mo_coeff, natorb)
-    #nelec = natocc.sum()
-    lib.logger.info(mf, 'Natural occupations active space %s', natocc)
-    #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+    #lib.logger.timer(mf,'1-RDM build', *t0)
 
     t0 = (time.clock(), time.time())
     rdm1, rdm2 = make_rdm12(mf,c,strs,norb,nelec)
+    natocc, natorb = numpy.linalg.eigh(rdm1)
+    natorb = numpy.dot(mf.mo_coeff[:,:ncore+norb], natorb)
+    lib.logger.info(mf, 'Natural occupations active space %s', natocc)
+    lib.logger.info(mf, 'Sum of natural occupations %s', natocc.sum())
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
     rdm1_check = numpy.einsum('ijkk->ij', rdm2) / (nelec-1)
     norm = numpy.linalg.norm(rdm1-rdm1_check)
@@ -388,12 +324,10 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
     lib.logger.timer(mf,'1/2-RDM build', *t0)
 
-    #TODO:include core/core-valence contribution
+    #TODO:include core/core-valence contribution and make consistent
     t0 = (time.clock(), time.time())
     hcore = mf.get_hcore()
     h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
-    eri_mo = ao2mo.kernel(mol, coeff[:,:norb], compact=False, intor='int2e_spinor')
-    eri_mo = eri_mo.reshape(norb,norb,norb,norb)
     e_core = mol.energy_nuc() 
     e1 = numpy.einsum('ij,ji->', rdm1, h1e)
     e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)*0.5
@@ -401,32 +335,36 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
     lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
-    core_idx = numpy.arange(ncore)
-    core_dm = numpy.dot(coeff[:, core_idx], coeff[:, core_idx].conj().T)
-    dm = core_dm + reduce(numpy.dot, (coeff[:,ci_idx], rdm1, coeff[:,ci_idx].conj().T))
-    vj, vk = mf.get_jk(mol, dm)
-    fock = mf.get_hcore() + vj-vk#*.5
-    #print fock
+    # Generalized fock operator
+    #core_idx = numpy.arange(ncore)
+    #core_dm = numpy.dot(coeff[:,core_idx], coeff[:, core_idx].conj().T)
+    #dm = core_dm + reduce(numpy.dot, (coeff[:,ci_idx], rdm1, coeff[:,ci_idx].conj().T))
+    #vj, vk = mf.get_jk(mol, dm)
+    #fock = mf.get_hcore() + vj-vk
+    #fock = reduce(numpy.dot, (coeff[:, ci_idx].conj().T, fock, coeff[:,ci_idx]))
     #dump_tri(mf.stdout,fock,ncol=15,digits=4)
-    ci_idx = numpy.arange(ncore+norb)
-    fock = reduce(numpy.dot, (coeff[:,ci_idx].conj().T, fock, coeff[:,ci_idx]))
-    #print fock
-    dump_tri(mf.stdout,fock,ncol=15,digits=4)
+    #fock = numpy.einsum('pr,rq->pq', h1e, rdm1) + \
+    #       0.5*numpy.einsum('psrt,sqtr->pq', eri_mo, rdm2) 
+    #dump_tri(mf.stdout,fock,ncol=15,digits=4)
+    #X = (F - F.conj().T)
+    #dump_tri(mf.stdout,X,ncol=15,digits=4)
+    # Build Newton-Raphson orbital rotation matrix
+    #U = scipy.linalg.expm(X - X.conj().T)
+    # Rotate coefficients
+    #c = c.dot(U)
 
     myhf = scf.RHF(mol).x2c()
     myhf.with_x2c.basis = 'unc-ano'
     myhf.verbose = 0
     myhf.kernel()
     
-    # 6 orbitals, 8 electrons
     mycas = mcscf.CASCI(myhf, 2, 2)
     mycas.verbose = 4
+    mycas.fix_spin_(shift=0.2,ss=0)
     mycas.kernel()
-    coeff = mycas.mo_coeff
-    norb = 2
-    ci_idx = numpy.arange(ncore+norb)
-    fock = mycas.get_fock()
+    #ci_idx = ncore + numpy.arange(2)
+    #coeff = mycas.mo_coeff
+    #fock = mycas.get_fock()
+    #fock = reduce(numpy.dot, (coeff[:, ci_idx].T, fock, coeff[:,ci_idx]))
     #dump_tri(mf.stdout,fock,ncol=15,digits=4)
-    fock = reduce(numpy.dot, (coeff[:,ci_idx].conj().T, fock, coeff[:,ci_idx]))
-    dump_tri(mf.stdout,fock,ncol=15,digits=4)
 
