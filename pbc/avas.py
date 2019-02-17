@@ -27,15 +27,15 @@ from functools import reduce
 import numpy
 import scipy.linalg
 from pyscf import lib
-from pyscf import gto
-from pyscf import scf
+from pyscf.pbc import gto
+from pyscf.pbc import scf
 from pyscf.lib import logger
 from pyscf import __config__
 
 THRESHOLD_OCC = getattr(__config__, 'mcscf_avas_threshold_occ', 0.1)
 THRESHOLD_VIR = getattr(__config__, 'mcscf_avas_threshold_vir', 0.01)
 MINAO = getattr(__config__, 'mcscf_avas_minao', 'minao')
-WITH_IAO = getattr(__config__, 'mcscf_avas_with_iao', False)
+WITH_IAO = getattr(__config__, 'mcscf_avas_with_iao', True)
 OPENSHELL_OPTION = getattr(__config__, 'mcscf_avas_openshell_option', 2)
 CANONICALIZE = getattr(__config__, 'mcscf_avas_canonicalize', True)
 NCORE = getattr(__config__, 'mcscf_avas_ncore', 0)
@@ -108,7 +108,7 @@ def kernel(mf, aolabels, threshold_occ=THRESHOLD_OCC, threshold_vir=THRESHOLD_VI
         mo_occ = mf.mo_occ
         mo_energy = mf.mo_energy
     nocc = numpy.count_nonzero(mo_occ != 0)
-    ovlp = mol.intor_symmetric('int1e_ovlp')
+    ovlp = mol.pbc_intor('int1e_ovlp', hermi=1)
     log.info('  Total number of HF MOs  is equal to    %d' ,mo_coeff.shape[1])
     log.info('  Number of occupied HF MOs is equal to  %d', nocc)
     log.info('  Number of core HF MOs is equal to  %d', ncore)
@@ -130,10 +130,10 @@ def kernel(mf, aolabels, threshold_occ=THRESHOLD_OCC, threshold_vir=THRESHOLD_VI
         s2 = reduce(numpy.dot, (c.T, ovlp, c))
         s21 = reduce(numpy.dot, (c.T, ovlp, mo_coeff[:, ncore:]))
     else:
-        s2 = pmol.intor_symmetric('int1e_ovlp')[baslst][:,baslst]
-        s21 = gto.intor_cross('int1e_ovlp', pmol, mol)[baslst]
+        s2 = pmol.pbc_intor('int1e_ovlp', hermi=1)[baslst][:,baslst]
+        s21 = gto.cell.intor_cross('int1e_ovlp', pmol, mol)[baslst]
         s21 = numpy.dot(s21, mo_coeff[:, ncore:])
-    sa = s21.T.dot(scipy.linalg.solve(s2, s21, sym_pos=True))
+    sa = s21.T.dot(scipy.linalg.solve(s2, s21))
 
     if openshell_option == 2:
         wocc, u = numpy.linalg.eigh(sa[:(nocc-ncore), :(nocc-ncore)])
