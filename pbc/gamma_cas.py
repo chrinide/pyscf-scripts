@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+import numpy, avas
 from pyscf.pbc import gto, scf
 from pyscf import fci, ao2mo, mcscf
 
@@ -17,8 +17,8 @@ H 0.000000000000   0.000000000000   7.000000000000
 H 0.000000000000   0.000000000000   8.000000000000
 H 0.000000000000   0.000000000000   9.000000000000
 '''
-cell.basis = 'def2-tzvp'
-cell.precision = 1e-6
+cell.basis = 'def2-svpd'
+cell.precision = 1e-8
 cell.dimension = 1
 cell.a = '''
 10.000000000, 0.000000000, 0.000000000
@@ -29,16 +29,16 @@ cell.verbose = 4
 cell.build()
 
 mf = scf.RHF(cell).density_fit(auxbasis='def2-svp-jkfit')
-#mf.exxdiv = None
+mf.exxdiv = None
 ehf = mf.kernel()
 
-from pyscf.mcscf import avas
 ao_labels = ['H 1s']
-norb, ne_act, orbs = avas.avas(mf, ao_labels, canonicalize=True, ncore=0)
+norb, ne_act, orbs = avas.avas(mf, ao_labels, ncore=0, threshold_occ=0.1, threshold_vir=0.1)
 
 mc = mcscf.CASSCF(mf, norb, ne_act)
+mc.fix_spin_(shift=.4, ss=0)
+mc.fcisolver = fci.direct_spin0.FCI()
 #mc.fcisolver = fci.selected_ci_spin0.SCI()
-#mc.fix_spin_(shift=.5, ss=0.0000)
 #mc.fcisolver.ci_coeff_cutoff = 0.005
 #mc.fcisolver.select_cutoff = 0.005
 mc.kernel(orbs)

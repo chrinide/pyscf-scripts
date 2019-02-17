@@ -1,0 +1,134 @@
+#INFO: **** input file is /home/jluis/src/git/scripts/pbc/gamma_cas.py ****
+#!/usr/bin/env python
+
+import numpy, avas
+from pyscf.pbc import gto, scf
+from pyscf import fci, ao2mo, mcscf
+
+cell = gto.Cell()
+cell.atom='''
+H 0.000000000000   0.000000000000   0.000000000000
+H 0.000000000000   1.000000000000   0.000000000000
+H 0.000000000000   1.000000000000   1.000000000000
+H 0.000000000000   0.000000000000   1.000000000000
+H 1.000000000000   1.000000000000   0.000000000000
+H 1.000000000000   0.000000000000   0.000000000000
+H 1.000000000000   0.000000000000   1.000000000000
+H 1.000000000000   1.000000000000   1.000000000000
+'''
+cell.basis = 'def2-svpd'
+cell.precision = 1e-6
+#cell.dimension = 1
+cell.a = '''
+ 2.000000000, 0.000000000, 0.000000000
+ 0.000000000, 2.000000000, 0.000000000
+ 0.000000000, 0.000000000, 2.000000000'''
+cell.unit = 'A'
+cell.verbose = 4
+cell.build()
+
+mf = scf.RHF(cell).density_fit(auxbasis='def2-svp-jkfit')
+mf.exxdiv = None
+ehf = mf.kernel()
+
+ao_labels = ['H 1s']
+norb, ne_act, orbs = avas.avas(mf, ao_labels, ncore=0, threshold_occ=0.1, threshold_vir=0.1)
+
+mc = mcscf.CASSCF(mf, norb, ne_act)
+mc.fix_spin_(shift=.4, ss=0)
+mc.fcisolver = fci.selected_ci_spin0.SCI()
+mc.fcisolver.ci_coeff_cutoff = 0.005
+mc.fcisolver.select_cutoff = 0.005
+mc.kernel(orbs)
+
+nmo = mc.ncore + mc.ncas
+rdm1, rdm2 = mc.fcisolver.make_rdm12(mc.ci, mc.ncas, mc.nelecas) 
+rdm1, rdm2 = mcscf.addons._make_rdm12_on_mo(rdm1, rdm2, mc.ncore, mc.ncas, nmo)
+
+#natocc, natorb = numpy.linalg.eigh(-rdm1)
+#for i, k in enumerate(numpy.argmax(abs(natorb), axis=0)):
+#    if natorb[k,i] < 0:
+#        natorb[:,i] *= -1
+#natorb = numpy.dot(mc.mo_coeff[:,:nmo], natorb)
+#natocc = -natocc
+#
+#wfn_file = name + '.wfn'
+#with open(wfn_file, 'w') as f2:
+#    wfn_format.write_mo(f2, mol, natorb, mo_occ=natocc)
+#    wfn_format.write_coeff(f2, mol, mc.mo_coeff[:,:nmo])
+#    wfn_format.write_ci(f2, select_ci.to_fci(mc.ci,mc.ncas,mc.nelecas), mc.ncas, mc.nelecas, ncore=mc.ncore)
+
+#INFO: ******************** input file end ********************
+
+
+System: ('Linux', 'silicio', '3.16.0-4-amd64', '#1 SMP Debian 3.16.51-3 (2017-12-13)', 'x86_64', '')  Threads 12
+Python 2.7.15 (default, Oct 25 2018, 01:35:55) 
+[GCC 8.2.0]
+numpy 1.15.3  scipy 1.1.0
+Date: Fri Feb 15 04:50:21 2019
+PySCF version 1.6
+PySCF path  /home/jluis/src/pyscf/dev/pyscf
+GIT ORIG_HEAD 4a61da4e6fe8b28b710d2599808f7e36ad8311e7
+GIT HEAD      ref: refs/heads/dev
+GIT dev branch  65c8a7148f2baef5c9108ae57acb2c1234333adc
+
+[ENV] PYSCF_TMPDIR /scratch-ssd/jluis
+[CONFIG] conf_file None
+[INPUT] verbose = 4
+[INPUT] num. atoms = 8
+[INPUT] num. electrons = 8
+[INPUT] charge = 0
+[INPUT] spin (= nelec alpha-beta = 2S) = 0
+[INPUT] symmetry False subgroup None
+[INPUT] Mole.unit = A
+[INPUT]  1 H      0.000000000000   0.000000000000   0.000000000000 AA    0.000000000000   0.000000000000   0.000000000000 Bohr
+[INPUT]  2 H      0.000000000000   1.000000000000   0.000000000000 AA    0.000000000000   1.889726124565   0.000000000000 Bohr
+[INPUT]  3 H      0.000000000000   1.000000000000   1.000000000000 AA    0.000000000000   1.889726124565   1.889726124565 Bohr
+[INPUT]  4 H      0.000000000000   0.000000000000   1.000000000000 AA    0.000000000000   0.000000000000   1.889726124565 Bohr
+[INPUT]  5 H      1.000000000000   1.000000000000   0.000000000000 AA    1.889726124565   1.889726124565   0.000000000000 Bohr
+[INPUT]  6 H      1.000000000000   0.000000000000   0.000000000000 AA    1.889726124565   0.000000000000   0.000000000000 Bohr
+[INPUT]  7 H      1.000000000000   0.000000000000   1.000000000000 AA    1.889726124565   0.000000000000   1.889726124565 Bohr
+[INPUT]  8 H      1.000000000000   1.000000000000   1.000000000000 AA    1.889726124565   1.889726124565   1.889726124565 Bohr
+
+nuclear repulsion = -6.00573266697052
+number of shells = 32
+number of NR pGTOs = 80
+number of NR cGTOs = 64
+basis = def2-svpd
+ecp = {}
+CPU time:         0.26
+lattice vectors  a1 [3.779452249, 0.000000000, 0.000000000]
+                 a2 [0.000000000, 3.779452249, 0.000000000]
+                 a3 [0.000000000, 0.000000000, 3.779452249]
+dimension = 3
+low_dim_ft_type = None
+Cell volume = 53.9867
+rcut = 18.575413712840103 (nimgs = [5 5 5])
+lattice sum = 1015 cells
+precision = 1e-06
+pseudo = None
+ke_cutoff = 416.7886796787681
+    = [35 35 35] mesh (42875 PWs)
+ew_eta = 2.94461
+ew_cut = 2.1398792746578343 (nimgs = [1 1 1])
+
+
+******** <class 'pyscf.pbc.scf.hf.RHF'> ********
+method = RHF-SCF
+initial guess = minao
+damping factor = 0
+level shift factor = 0
+DIIS = <class 'pyscf.scf.diis.CDIIS'>
+DIIS start cycle = 1
+DIIS space = 8
+SCF tol = 1e-05
+SCF gradient tol = None
+max. SCF cycles = 50
+direct_scf = False
+chkfile to save SCF result = /scratch-ssd/jluis/tmp5Um_Hq
+max_memory 60000 MB (current use 74 MB)
+******** PBC SCF flags ********
+kpt = [0. 0. 0.]
+Exchange divergence treatment (exxdiv) = None
+DF object = <pyscf.pbc.df.df.GDF object at 0x2b7be8104150>
+Set gradient conv threshold to 0.00316228
