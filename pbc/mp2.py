@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import numpy, utils
-from pyscf import lib
+from pyscf import lib, ao2mo
 from pyscf.pbc import gto, scf, df, mp
 from pyscf.tools import wfn_format
 
-name = 'df-mp2'
+name = 'mp2'
 
 cell = gto.Cell()
 cell.unit = 'A'
@@ -50,33 +50,13 @@ lib.logger.info(mf,"\n+++ GAMMA point MP2 ")
 lib.logger.info(mf,"* Core orbitals: %d" % ncore)
 lib.logger.info(mf,"* Virtual orbitals: %d" % (len(ev)))
 
-naux = gdf.get_naoaux()
-nao = cell.nao
-dferi = numpy.zeros((naux,nao,nao))
-kpt = numpy.zeros(3)
-p1 = 0
-for LpqR, LpqI, sign in gdf.sr_loop((kpt,kpt), compact=False):
-    p0, p1 = p1, p1 + LpqR.shape[0]
-    dferi[p0:p1] = LpqR.reshape(-1,nao,nao)
-
-eri_mo = lib.einsum('rj,Qrs->Qjs', co, dferi)
-eri_mo = lib.einsum('sb,Qjs->Qjb', cv, eri_mo)
-vv_denom = -ev.reshape(-1,1)-ev
+eri_mo = ao2mo.general(mf._eri, (co,cv,co,cv), compact=False)
+eri_mo = eri_mo.reshape(nocc,nvir,nocc,nvir)
+e_denom = 1.0/(eo.reshape(-1,1,1,1)-ev.reshape(-1,1,1)+eo.reshape(-1,1)-ev)
 t2 = numpy.zeros((nocc,nvir,nocc,nvir))
-for i in range(nocc):
-    eps_i = eo[i]
-    i_Qv = eri_mo[:, i, :].copy()
-    for j in range(nocc):
-        eps_j = eo[j]
-        j_Qv = eri_mo[:, j, :].copy()
-        viajb = lib.einsum('Qa,Qb->ab', i_Qv, j_Qv)
-        vibja = lib.einsum('Qb,Qa->ab', i_Qv, j_Qv)
-        div = 1.0/(eps_i + eps_j + vv_denom)
-        t2[i,:,j,:] += 2.0*lib.einsum('ab,ab->ab', viajb, div) 
-        t2[i,:,j,:] -= 1.0*lib.einsum('ab,ab->ab', vibja, div) 
-
-e_mp2 = lib.einsum('iajb,Qia->Qjb', t2, eri_mo)
-e_mp2 = numpy.einsum('Qjb,Qjb->', e_mp2, eri_mo, optimize=True)
+t2 = 2.0*lib.einsum('iajb,iajb->iajb', eri_mo, e_denom)
+t2 -= lib.einsum('ibja,iajb->iajb', eri_mo, e_denom)
+e_mp2 = numpy.einsum('iajb,iajb->', eri_mo, t2, optimize=True)
 lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
 lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
 
