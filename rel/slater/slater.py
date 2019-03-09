@@ -8,6 +8,7 @@ import ctypes
 import signal
 from functools import reduce
 
+import avas
 from pyscf import lib
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -207,10 +208,10 @@ if __name__ == '__main__':
 
     name = 'slater'
     mol = gto.Mole()
-    mol.basis = 'aug-cc-pvtz'
+    mol.basis = 'dzp-dk'
     mol.atom = '''
-    H 0.0 0.0 0.00
-    H 0.0 0.0 9.75
+    Pb  0.0 0.0 0.00
+    O   0.0 0.0 1.77
     '''
     mol.verbose = 4
     mol.spin = 0
@@ -223,13 +224,17 @@ if __name__ == '__main__':
     mf.with_x2c.basis = 'unc-ano'
     dm = mf.get_init_guess() + 0.0j
     ehf = mf.kernel(dm)
-    coeff = mf.mo_coeff
 
     lib.logger.TIMER_LEVEL = 3
+    ncore = 82
 
-    ncore = 0
-    norb = 4
-    nelec = mol.nelectron - ncore
+    #coeff = mf.mo_coeff
+    #norb = 16
+    #nelec = mol.nelectron - ncore
+
+    aolst = ['Pb 6p', 'O 2p']
+    norb, nelec, coeff = avas.avas(mf, aolst, verbose=4, ncore=ncore, threshold_occ=0.1,threshold_vir=0.01)
+
     e_core = mol.energy_nuc() 
     nao, nmo = coeff.shape
     nvir = nmo - ncore - norb
@@ -262,7 +267,7 @@ if __name__ == '__main__':
     orb_list = list(range(norb))
     t1 = (time.clock(), time.time())
     strs = make_strings(mf,orb_list,nelec) 
-    print_dets(mf,strs)
+    #print_dets(mf,strs)
     lib.logger.timer(mf,'det strings build', *t1)
     ndets = strs.shape[0]
     lib.logger.info(mf, 'Number of dets in civec %s', ndets)
@@ -298,7 +303,7 @@ if __name__ == '__main__':
     lib.logger.info(mf, 'Core energy %s', e_core)
     lib.logger.info(mf, 'Ground state energy %s', e)
     lib.logger.info(mf, 'Correlation energy %s', (e-ehf))
-    lib.logger.info(mf, 'Ground state civec %s', c)
+    lib.logger.debug(mf, 'Ground state civec %s', c)
     norm = numpy.einsum('i,i->',c.conj(),c)
     lib.logger.info(mf, 'Norm of ground state civec %s', norm)
     lib.logger.timer(mf,'CI build', *t0)
@@ -310,30 +315,30 @@ if __name__ == '__main__':
     #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
     #lib.logger.timer(mf,'1-RDM build', *t0)
 
-    t0 = (time.clock(), time.time())
-    rdm1, rdm2 = make_rdm12(mf,c,strs,norb,nelec)
-    natocc, natorb = numpy.linalg.eigh(rdm1)
-    natorb = numpy.dot(mf.mo_coeff[:,:ncore+norb], natorb)
-    lib.logger.info(mf, 'Natural occupations active space %s', natocc)
-    lib.logger.info(mf, 'Sum of natural occupations %s', natocc.sum())
+    #t0 = (time.clock(), time.time())
+    #rdm1, rdm2 = make_rdm12(mf,c,strs,norb,nelec)
+    #natocc, natorb = numpy.linalg.eigh(rdm1)
+    #natorb = numpy.dot(mf.mo_coeff[:,:ncore+norb], natorb)
+    #lib.logger.info(mf, 'Natural occupations active space %s', natocc)
+    #lib.logger.info(mf, 'Sum of natural occupations %s', natocc.sum())
     #dump_tri(mf.stdout,rdm1,ncol=15,digits=4)
-    rdm1_check = numpy.einsum('ijkk->ij', rdm2) / (nelec-1)
-    norm = numpy.linalg.norm(rdm1-rdm1_check)
-    lib.logger.info(mf, 'Diff in 1-RDM %s', norm)
-    nelec = numpy.einsum('ii->', rdm1_check)
-    lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
-    lib.logger.timer(mf,'1/2-RDM build', *t0)
+    #rdm1_check = numpy.einsum('ijkk->ij', rdm2) / (nelec-1)
+    #norm = numpy.linalg.norm(rdm1-rdm1_check)
+    #lib.logger.info(mf, 'Diff in 1-RDM %s', norm)
+    #nelec = numpy.einsum('ii->', rdm1_check)
+    #lib.logger.info(mf, 'Number of electrons in active space %s', nelec)
+    #lib.logger.timer(mf,'1/2-RDM build', *t0)
 
     #TODO:include core/core-valence contribution and make consistent
-    t0 = (time.clock(), time.time())
-    hcore = mf.get_hcore()
-    h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
-    e_core = mol.energy_nuc() 
-    e1 = numpy.einsum('ij,ji->', rdm1, h1e)
-    e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)*0.5
-    et = e1+e2+e_core
-    lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
-    lib.logger.timer(mf,'1/2-RDM energy build', *t0)
+    #t0 = (time.clock(), time.time())
+    #hcore = mf.get_hcore()
+    #h1e = reduce(numpy.dot, (coeff[:,:norb].conj().T, hcore, coeff[:,:norb]))
+    #e_core = mol.energy_nuc() 
+    #e1 = numpy.einsum('ij,ji->', rdm1, h1e)
+    #e2 = numpy.einsum('ijkl,ijkl->', rdm2, eri_mo)*0.5
+    #et = e1+e2+e_core
+    #lib.logger.info(mf, 'Total energy with 1/2-RDM %s', et)
+    #lib.logger.timer(mf,'1/2-RDM energy build', *t0)
 
     # Generalized fock operator
     #core_idx = numpy.arange(ncore)
@@ -353,15 +358,15 @@ if __name__ == '__main__':
     # Rotate coefficients
     #c = c.dot(U)
 
-    myhf = scf.RHF(mol).x2c()
-    myhf.with_x2c.basis = 'unc-ano'
-    myhf.verbose = 0
-    myhf.kernel()
+    #myhf = scf.RHF(mol).x2c()
+    #myhf.with_x2c.basis = 'unc-ano'
+    #myhf.verbose = 0
+    #myhf.kernel()
     
-    mycas = mcscf.CASCI(myhf, 2, 2)
-    mycas.verbose = 4
-    mycas.fix_spin_(shift=0.2,ss=0)
-    mycas.kernel()
+    #mycas = mcscf.CASCI(myhf, 2, 2)
+    #mycas.verbose = 4
+    #mycas.fix_spin_(shift=0.2,ss=0)
+    #mycas.kernel()
     #ci_idx = ncore + numpy.arange(2)
     #coeff = mycas.mo_coeff
     #fock = mycas.get_fock()

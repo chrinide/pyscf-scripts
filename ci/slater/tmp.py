@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+def sign(string0, string1):
+    ss = string1 - string0
+    def count_bit1(n):
+        # see Hamming weight problem and K&R C program
+        return bin(n).count('1')
+    if ss > 0:
+        # string1&ss gives the number of 1s between two strings
+        return (-1) ** (count_bit1(string1&ss))
+    elif ss == 0:
+        return 1
+    else:
+        return (-1) ** (count_bit1(string0&(-ss)))
+
+
 def gen_cis(self):
     neleca = self.nelec[0]
     nocca = self.nelec[0]
