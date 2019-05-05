@@ -30,7 +30,7 @@ def get_sfock(h1e, s1e, vhf, dm, cycle=0, diis=diis_obj):
     fock[1] = fock0[1] - 2.0*lmult*matb
     return fock
 
-mf = scf.UHF(mol).newton()
+mf = scf.UHF(mol)#.newton()
 mf.conv_tol = 1e-6
 mf.max_cycle = 100
 mf.diis = diis_obj
