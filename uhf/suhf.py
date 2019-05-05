@@ -16,7 +16,7 @@ mol.charge = 0
 mol.build()
 
 lmult = 0.1
-diis_obj = scf.ADIIS()
+diis_obj = scf.EDIIS()
 diis_obj.diis_space = 20
 
 def get_sfock(h1e, s1e, vhf, dm, cycle=0, diis=diis_obj):
@@ -30,7 +30,7 @@ def get_sfock(h1e, s1e, vhf, dm, cycle=0, diis=diis_obj):
     fock[1] = fock0[1] - 2.0*lmult*matb
     return fock
 
-mf = scf.UHF(mol)
+mf = scf.UHF(mol).newton()
 mf.conv_tol = 1e-6
 mf.max_cycle = 100
 mf.diis = diis_obj
@@ -48,5 +48,5 @@ tmp1 = numpy.einsum('ik,kj->ij',s,pa)
 tmp2 = numpy.einsum('ik,kj->ij',s,pb)
 tr = numpy.einsum('ij,ji->',tmp1,tmp2)
 ss = sz*(sz+1.0)+nocc_b-tr
-print "S^2",ss
+print ("S^2",ss)
 
