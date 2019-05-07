@@ -18,14 +18,15 @@ mol.build()
 lmult = 0.1
 diis_obj = scf.EDIIS()
 diis_obj.diis_space = 20
+diis_obj.start_cycle = 1
 
-def get_sfock(h1e, s1e, vhf, dm, cycle=0, diis=diis_obj):
-    fock0 = old_get_fock(h1e, s1e, vhf, dm, cycle, diis)
+def get_sfock(h1e, s1e, vhf, dm, cycle=0, diis=diis_obj, **kwargs):
+    fock0 = old_get_fock(h1e, s1e, vhf, dm, cycle, diis, **kwargs)
     fock = numpy.zeros_like(fock0)
-    mata = numpy.einsum('ik,kj->ij', s1e, dm[1])
-    mata = numpy.einsum('ik,kj->ij', mata, s1e)
-    matb = numpy.einsum('ik,kj->ij', s1e, dm[0])
-    matb = numpy.einsum('ik,kj->ij', matb, s1e)
+    mata = numpy.dot(s1e, dm[1])
+    mata = numpy.dot(mata, s1e)
+    matb = numpy.dot(s1e, dm[0])
+    matb = numpy.dot(matb, s1e)
     fock[0] = fock0[0] - 2.0*lmult*mata
     fock[1] = fock0[1] - 2.0*lmult*matb
     return fock
@@ -34,6 +35,7 @@ mf = scf.UHF(mol)#.newton()
 mf.conv_tol = 1e-6
 mf.max_cycle = 100
 mf.diis = diis_obj
+mf.level_shift = 0.5
 old_get_fock = mf.get_fock
 mf.get_fock = get_sfock
 mf.kernel()
