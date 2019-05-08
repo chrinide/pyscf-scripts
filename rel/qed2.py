@@ -54,7 +54,7 @@ def ao2mo(mf, mo_coeff, erifile):
                       verbose=mf.verbose)
     blksize = max(1, int(512e6/16/(nvir*nP*nvir))) * nvir
     run((os0,os2,os1,os2), 'cint2e_spsp1spsp2', 'ij', nocc*nvir, blksize)
-    run((os0,os2,ol1,ol2), 'cint2e_spsp1'     , 'ij', nocc*nvir, blksize)
+    run((os0,os2,ol1,ol2), 'cint2e_spsp1'     , 'ij', nocc*nvir, blksize) #ssll
     run((ol0,ol2,os1,os2), 'cint2e_spsp2'     , 'ij', nocc*nvir, blksize)
 
     r_outcore.general(mf.mol, (ol0,ol3,ol4,ol3), erifile,
