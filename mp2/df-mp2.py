@@ -5,8 +5,6 @@ from pyscf import gto, scf, lib, ao2mo
 from pyscf.tools import molden
 einsum = lib.einsum
 
-name = 'ch4'
-
 mol = gto.Mole()
 mol.basis = 'aug-cc-pvdz'
 mol.atom = '''
@@ -23,16 +21,11 @@ mol.verbose = 4
 mol.build()
 
 mf = scf.RHF(mol)
-mf.chkfile = name+'.chk'
-mf.level_shift = 0.5
 mf = scf.density_fit(mf)
 mf.auxbasis = 'aug-cc-pvdz-jkfit'
-mf = scf.addons.remove_linear_dep_(mf)
-mf = scf.newton(mf)
-mf.kernel()
-dm = mf.make_rdm1()
-mf.level_shift = 0.0
-ehf = mf.kernel(dm)
+#mf = scf.addons.remove_linear_dep_(mf)
+#mf = scf.newton(mf)
+ehf = mf.kernel()
 
 stable_cyc = 3
 for i in range(stable_cyc):
@@ -99,27 +92,27 @@ e_mp2 = numpy.einsum('Qjb,Qjb->', e_mp2, eri_mo, optimize=True)
 lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
 lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
 
-den_file = name + '.den'
+#den_file = name + '.den'
 #fspt = bz2.BZ2File(den_file,'w',compresslevel=9)
-fspt = open(den_file,'w')
-fspt.write('MP2\n')
-fspt.write('1-RDM:\n')
-occup = 2.0
-norb = mol.nelectron//2
-for i in range(norb):
-    fspt.write('%i %i %.16f\n' % ((i+1), (i+1), occup))
-fspt.write('t2_iajb:\n')
-for i in range(nocc):
-    for j in range(nvir):
-        for k in range(nocc):
-            for l in range(nvir):
-                if (abs(t2[i,j,k,l]) > 1e-8):
-                        fspt.write('%i %i %i %i %.10f\n' % ((i+1+ncore), \
-                        (j+1+nocc+ncore), (k+1+ncore), (l+1+nocc+ncore), \
-                        t2[i,j,k,l]*2.0))
-fspt.close()                    
-    
-with open(name+'.mol', 'w') as f2:
-    molden.header(mol, f2)
-    molden.orbital_coeff(mol, f2, mf.mo_coeff, occ=mf.mo_occ)
-
+#fspt = open(den_file,'w')
+#fspt.write('MP2\n')
+#fspt.write('1-RDM:\n')
+#occup = 2.0
+#norb = mol.nelectron//2
+#for i in range(norb):
+#    fspt.write('%i %i %.16f\n' % ((i+1), (i+1), occup))
+#fspt.write('t2_iajb:\n')
+#for i in range(nocc):
+#    for j in range(nvir):
+#        for k in range(nocc):
+#            for l in range(nvir):
+#                if (abs(t2[i,j,k,l]) > 1e-8):
+#                        fspt.write('%i %i %i %i %.10f\n' % ((i+1+ncore), \
+#                        (j+1+nocc+ncore), (k+1+ncore), (l+1+nocc+ncore), \
+#                        t2[i,j,k,l]*2.0))
+#fspt.close()                    
+#    
+#with open(name+'.mol', 'w') as f2:
+#    molden.header(mol, f2)
+#    molden.orbital_coeff(mol, f2, mf.mo_coeff, occ=mf.mo_occ)
+#

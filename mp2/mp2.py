@@ -5,10 +5,8 @@ from pyscf import gto, scf, lib, ao2mo
 from pyscf.tools import molden
 einsum = lib.einsum
 
-name = 'ch4'
-
 mol = gto.Mole()
-mol.basis = 'aug-cc-pvtz'
+mol.basis = 'aug-cc-pvdz'
 mol.atom = '''
 C  0.0000  0.0000  0.0000
 H  0.6276  0.6276  0.6276
@@ -23,7 +21,7 @@ mol.verbose = 4
 mol.build()
 
 mf = scf.RHF(mol)
-mf.chkfile = name+'.chk'
+#mf.chkfile = name+'.chk'
 ehf = mf.kernel()
 
 nao, nmo = mf.mo_coeff.shape
