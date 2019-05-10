@@ -7,9 +7,9 @@ einsum = lib.einsum
 mol = gto.Mole()
 mol.basis = 'dzp-dk'
 mol.atom = '''
-O
-H 1 1.1
-H 1 1.1 2 104
+Te
+H 1 2.5
+H 1 2.5 2 104
 '''
 mol.charge = 0
 mol.spin = 0

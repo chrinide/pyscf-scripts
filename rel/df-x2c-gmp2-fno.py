@@ -30,7 +30,7 @@ def fjk2c(mol, dm, *args, **kwargs):
     vk = lib.einsum('pik,pkj->ij', v1, cderi_ll)
     return vj, vk
 
-mf = x2c.RHF(mol)
+mf = x2c.UHF(mol)
 dm = mf.get_init_guess() + 0.0j
 mf.get_jk = fjk2c
 mf.direct_scf = False

@@ -31,9 +31,10 @@ nP = nN + nocc
 nvir = nmo - nP
 c = lib.param.LIGHT_SPEED
 
-print('4C-MP2 negative energy states are removed')
+print('4C-MP2 negative energy states are removed --> No-pair aproximation')
 coeffl = mf.mo_coeff[:n2c,nN:] 
 coeffs = mf.mo_coeff[n2c:,nN:]*(0.5/c) 
+
 eri_llll = mol.intor('int2e_spinor')
 eri_llll = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llll)
 eri_llll = einsum('qa,iqrs->iars', coeffl, eri_llll)
@@ -57,6 +58,7 @@ eri_llss = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llss)
 eri_llss = einsum('qa,iqrs->iars', coeffl, eri_llss)
 eri_llss = einsum('iars,rj->iajs', eri_llss, coeffs.conj())
 eri_llss = einsum('iajs,sb->iajb', eri_llss, coeffs)
+
 o = slice(0, nocc)
 v = slice(nocc, None)
 eri_mo = eri_llll + eri_ssss + eri_llss + eri_ssll

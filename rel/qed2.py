@@ -315,19 +315,19 @@ if __name__ == '__main__':
     from pyscf import scf, gto
 
     mol = gto.Mole()
-    mol.basis = 'unc-dzp-dk'
+    mol.basis = 'dzp-dk'
     mol.atom = '''
-    O      0.000000      0.000000      0.118351
-    H      0.000000      0.761187     -0.469725
-    H      0.000000     -0.761187     -0.469725
+    O
+    H 1 1.1
+    H 1 1.1 2 104
     '''
     mol.charge = 0
     mol.spin = 0
-    mol.symmetry = 0
+    mol.symmetry = 1
     mol.verbose = 4
     mol.build()
 
-    mf = scf.DHF(mol)
+    mf = scf.DRHF(mol)
     mf.with_ssss = True
     mf.kernel()
 
@@ -338,5 +338,5 @@ if __name__ == '__main__':
     e2 = make_eq146(mf,erifile)
     e3 = make_eq147(mf,erifile)
     e4 = make_eq148(mf,erifile)
-    print e4[0]
+    print e1,e2,e3,e4[0]
 
