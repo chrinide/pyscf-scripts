@@ -38,8 +38,8 @@ v_iajb = v_iajb.reshape(nocc,nvir,nocc,nvir)
 
 def diagonalize(a, b, nroots=3):
     e, c = numpy.linalg.eig(\
-                 numpy.bmat([[ a       , b       ],
-                             [-b.conj(),-a.conj()]]))   
+                 numpy.bmat([[ a, b],
+                             [-b,-a]]))   
     c = numpy.array(c)
     idx = numpy.where(e>0)
     idx = numpy.asarray(idx[0])
@@ -52,16 +52,16 @@ def diagonalize(a, b, nroots=3):
     c = c[:,:nroots]
     return e, c
 
-a  = numpy.einsum('ab,ij->iajb', numpy.diag(ev), \
+a  = lib.einsum('ab,ij->iajb', numpy.diag(ev), \
      numpy.diag(numpy.ones(nocc)))
-a -= numpy.einsum('ij,ab->iajb', numpy.diag(eo), \
+a -= lib.einsum('ij,ab->iajb', numpy.diag(eo), \
      numpy.diag(numpy.ones(nvir)))
 a += 2.0*v_iajb
 a -= v_ijab.swapaxes(1, 2)
 b  = 2.0*v_iajb
 b -= v_iajb.swapaxes(0, 2)
 
-nroots = 3
+nroots = nov
 
 a.shape = (nov, nov)
 b.shape = (nov, nov)
@@ -96,4 +96,9 @@ e = numpy.sqrt(e)
 e = numpy.sort(e[e > 0])[:nroots]
 e = numpy.asarray(e)*nist.HARTREE2EV
 lib.logger.info(mf,'Alternative TD-HF: %s' % e.real)
+
+from pyscf import tdscf
+td = tdscf.TDHF(mf)
+td.nstates = nov
+td.kernel()
 
