@@ -15,11 +15,15 @@ mol.basis = 'cc-pVDZ'
 mol.symmetry = 0
 mol.build(dump_input=False, parse_arg=False)
 
-E = [0.0,0.0,-0.1]
-mol.set_common_orig([0, 0, 0]) # The gauge origin for dipole integral
 k = mol.intor('int1e_kin') 
 ne = mol.intor('int1e_nuc_sph')
-ef = numpy.einsum('x,xij->ij', E, mol.intor('int1e_r_sph', comp=3))
+E = [0.0001, 0, 0]
+charges = mol.atom_charges()
+coords  = mol.atom_coords()
+charge_center = numpy.einsum('i,ix->x', charges, coords) / charges.sum()
+with mol.with_common_orig(charge_center):
+    ao_dip = mol.intor_symmetric('int1e_r', comp=3)
+ef = numpy.einsum('x,xij->ij', E, ao_dip)
 h = k + ne + ef
 
 mf = scf.RHF(mol)

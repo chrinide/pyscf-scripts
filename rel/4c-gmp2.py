@@ -31,44 +31,84 @@ nP = nN + nocc
 nvir = nmo - nP
 c = lib.param.LIGHT_SPEED
 
-print('4C-MP2 negative energy states are removed --> No-pair aproximation')
-coeffl = mf.mo_coeff[:n2c,nN:] 
-coeffs = mf.mo_coeff[n2c:,nN:]*(0.5/c) 
+#print('4C-MP2 negative energy states are removed')
+#coeffl = mf.mo_coeff[:n2c,nN:] 
+#coeffs = mf.mo_coeff[n2c:,nN:]*(0.5/c) 
+ 
+#eri_llll = mol.intor('int2e_spinor')
+#eri_llll = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llll)
+#eri_llll = einsum('qa,iqrs->iars', coeffl, eri_llll)
+#eri_llll = einsum('iars,rj->iajs', eri_llll, coeffl.conj())
+#eri_llll = einsum('iajs,sb->iajb', eri_llll, coeffl)
+ 
+#eri_ssss = mol.intor('int2e_spsp1spsp2_spinor')
+#eri_ssss = einsum('pi,pqrs->iqrs', coeffs.conj(), eri_ssss)
+#eri_ssss = einsum('qa,iqrs->iars', coeffs, eri_ssss)
+#eri_ssss = einsum('iars,rj->iajs', eri_ssss, coeffs.conj())
+#eri_ssss = einsum('iajs,sb->iajb', eri_ssss, coeffs)
+ 
+#eri_ssll = mol.intor('int2e_spsp1_spinor')
+#eri_ssll = einsum('pi,pqrs->iqrs', coeffs.conj(), eri_ssll)
+#eri_ssll = einsum('qa,iqrs->iars', coeffs, eri_ssll)
+#eri_ssll = einsum('iars,rj->iajs', eri_ssll, coeffl.conj())
+#eri_ssll = einsum('iajs,sb->iajb', eri_ssll, coeffl)
+ 
+#eri_llss = mol.intor('int2e_spsp2_spinor')
+#eri_llss = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llss)
+#eri_llss = einsum('qa,iqrs->iars', coeffl, eri_llss)
+#eri_llss = einsum('iars,rj->iajs', eri_llss, coeffs.conj())
+#eri_llss = einsum('iajs,sb->iajb', eri_llss, coeffs)
+
+#o = slice(0, nocc)
+#v = slice(nocc, None)
+#eri_mo = eri_llll + eri_ssss + eri_llss + eri_ssll
+#eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
+#eo = mf.mo_energy[nN:nP]
+#ev = mf.mo_energy[nP:]
+#e_denom = 1.0/(-ev.reshape(-1,1,1,1)+eo.reshape(-1,1,1)-ev.reshape(-1,1)+eo)
+#t2 = numpy.zeros((nvir,nocc,nvir,nocc), dtype=numpy.complex128)
+#t2 = eri_mo[v,o,v,o]*e_denom 
+#e_mp2 = 0.25*numpy.einsum('iajb,aibj->', eri_mo[o,v,o,v], t2, optimize=True)
+#lib.logger.info(mf,"!*** E(MP2): %s" % e_mp2)
+#lib.logger.info(mf,"!*** E(X2C+MP2): %s" % (e_mp2+e4c))
+
+print('4C-MP2 negative energy states are removed')
+coefflo = mf.mo_coeff[:n2c,nN:nP]
+coeffso = mf.mo_coeff[n2c:,nN:nP]*(0.5/c) 
+coefflv = mf.mo_coeff[:n2c,nP:] 
+coeffsv = mf.mo_coeff[n2c:,nP:]*(0.5/c)  
 
 eri_llll = mol.intor('int2e_spinor')
-eri_llll = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llll)
-eri_llll = einsum('qa,iqrs->iars', coeffl, eri_llll)
-eri_llll = einsum('iars,rj->iajs', eri_llll, coeffl.conj())
-eri_llll = einsum('iajs,sb->iajb', eri_llll, coeffl)
+eri_llll = einsum('pi,pqrs->iqrs', coefflo.conj(), eri_llll)
+eri_llll = einsum('qa,iqrs->iars', coefflv, eri_llll)
+eri_llll = einsum('iars,rj->iajs', eri_llll, coefflo.conj())
+eri_llll = einsum('iajs,sb->iajb', eri_llll, coefflv)
 
 eri_ssss = mol.intor('int2e_spsp1spsp2_spinor')
-eri_ssss = einsum('pi,pqrs->iqrs', coeffs.conj(), eri_ssss)
-eri_ssss = einsum('qa,iqrs->iars', coeffs, eri_ssss)
-eri_ssss = einsum('iars,rj->iajs', eri_ssss, coeffs.conj())
-eri_ssss = einsum('iajs,sb->iajb', eri_ssss, coeffs)
+eri_ssss = einsum('pi,pqrs->iqrs', coeffso.conj(), eri_ssss)
+eri_ssss = einsum('qa,iqrs->iars', coeffsv, eri_ssss)
+eri_ssss = einsum('iars,rj->iajs', eri_ssss, coeffso.conj())
+eri_ssss = einsum('iajs,sb->iajb', eri_ssss, coeffsv)
 
 eri_ssll = mol.intor('int2e_spsp1_spinor')
-eri_ssll = einsum('pi,pqrs->iqrs', coeffs.conj(), eri_ssll)
-eri_ssll = einsum('qa,iqrs->iars', coeffs, eri_ssll)
-eri_ssll = einsum('iars,rj->iajs', eri_ssll, coeffl.conj())
-eri_ssll = einsum('iajs,sb->iajb', eri_ssll, coeffl)
+eri_ssll = einsum('pi,pqrs->iqrs', coeffso.conj(), eri_ssll)
+eri_ssll = einsum('qa,iqrs->iars', coeffsv, eri_ssll)
+eri_ssll = einsum('iars,rj->iajs', eri_ssll, coefflo.conj())
+eri_ssll = einsum('iajs,sb->iajb', eri_ssll, coefflv)
 
 eri_llss = mol.intor('int2e_spsp2_spinor')
-eri_llss = einsum('pi,pqrs->iqrs', coeffl.conj(), eri_llss)
-eri_llss = einsum('qa,iqrs->iars', coeffl, eri_llss)
-eri_llss = einsum('iars,rj->iajs', eri_llss, coeffs.conj())
-eri_llss = einsum('iajs,sb->iajb', eri_llss, coeffs)
+eri_llss = einsum('pi,pqrs->iqrs', coefflo.conj(), eri_llss)
+eri_llss = einsum('qa,iqrs->iars', coefflv, eri_llss)
+eri_llss = einsum('iars,rj->iajs', eri_llss, coeffso.conj())
+eri_llss = einsum('iajs,sb->iajb', eri_llss, coeffsv)
 
-o = slice(0, nocc)
-v = slice(nocc, None)
 eri_mo = eri_llll + eri_ssss + eri_llss + eri_ssll
 eri_mo = eri_mo - eri_mo.transpose(0,3,2,1)
 eo = mf.mo_energy[nN:nP]
 ev = mf.mo_energy[nP:]
-e_denom = 1.0/(-ev.reshape(-1,1,1,1)+eo.reshape(-1,1,1)-ev.reshape(-1,1)+eo)
-t2 = numpy.zeros((nvir,nocc,nvir,nocc), dtype=numpy.complex128)
-t2 = eri_mo[v,o,v,o]*e_denom 
-e_mp2 = 0.25*numpy.einsum('iajb,aibj->', eri_mo[o,v,o,v], t2, optimize=True)
+e_denom = 1.0/(eo.reshape(-1,1,1,1)-ev.reshape(-1,1,1)+eo.reshape(-1,1)-ev)
+t2 = eri_mo*e_denom 
+e_mp2 = 0.25*numpy.einsum('iajb,iajb->', eri_mo, t2, optimize=True)
 lib.logger.info(mf,"!*** E(MP2): %s" % e_mp2)
 lib.logger.info(mf,"!*** E(X2C+MP2): %s" % (e_mp2+e4c))
 

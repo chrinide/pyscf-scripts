@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy
-from pyscf import gto, scf, ao2mo, mcscf
+from pyscf import gto, scf, mcscf
 
 mol = gto.Mole()
 mol.build(
@@ -10,13 +10,15 @@ mol.build(
     verbose = 4,
 )
 
-h = mol.intor('cint1e_kin_sph') + mol.intor('cint1e_nuc_sph')  
-E = [0.0,0.0,-0.01]
-origin = ([0.0,0.0,0.0])
-charges = mol.atom_charges()
+h = mol.intor_symmetric('int1e_kin') + \
+    mol.intor_symmetric('int1e_nuc')  
+E = [0.0,0.0,0.0001]
 coords  = mol.atom_coords()
-mol.set_common_orig(origin) # The gauge origin for dipole integral
-e = numpy.einsum('x,xij->ij', E, mol.intor('cint1e_r_sph', comp=3)) 
+charges = mol.atom_charges()
+charge_center = numpy.einsum('i,ix->x', charges, coords) / charges.sum()
+with mol.with_common_orig(charge_center):
+    ao_dip = mol.intor_symmetric('int1e_r', comp=3)
+e = numpy.einsum('x,xij->ij', E, ao_dip)
 h1 = h + e
 
 mf = scf.RHF(mol)

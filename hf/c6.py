@@ -33,9 +33,11 @@ eo = mf.mo_energy[ncore:ncore+nocc]
 ev = mf.mo_energy[ncore+nocc:]
 
 # Grab perturbation tensors in MO basis
-origin = ([0.0,0.0,0.0])
-mol.set_common_orig(origin)
-ao_dip = mol.intor_symmetric('int1e_r', comp=3)
+charges = mol.atom_charges()
+coords  = mol.atom_coords()
+charge_center = numpy.einsum('i,ix->x', charges, coords) / charges.sum()
+with mol.with_common_orig(charge_center):
+    ao_dip = mol.intor_symmetric('int1e_r', comp=3)
 dipoles_xyz = []
 for num in range(3):
     Fso = numpy.asarray(ao_dip[num])
