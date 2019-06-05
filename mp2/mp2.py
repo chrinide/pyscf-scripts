@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy
-from pyscf import gto, scf, lib, ao2mo
+from pyscf import gto, scf, lib, ao2mo, mp
 from pyscf.tools import molden
 einsum = lib.einsum
 

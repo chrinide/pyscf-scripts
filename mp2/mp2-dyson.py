@@ -2,15 +2,18 @@
 
 import numpy
 from functools import reduce
-from pyscf import gto, scf, lib, ao2mo
+from pyscf import gto, scf, lib, ao2mo, mp
 einsum = lib.einsum
 
 mol = gto.Mole()
-mol.basis = 'aug-cc-pvtz'
+mol.basis = 'aug-cc-pvdz'
 mol.atom = '''
-O
-H 1 1.1
-H 1 1.1 2 104
+O     -1.524532     -0.117833     -0.000000
+H     -1.939175      0.748436      0.000000
+H     -0.570996      0.063290     -0.000000
+O      1.341919      0.115275     -0.000000
+H      1.659631     -0.378243     -0.762531
+H      1.659631     -0.378243      0.762531
 '''
 mol.charge = 0
 mol.spin = 0
@@ -110,4 +113,8 @@ t2 -= einsum('ibja,iajb->iajb', eri_mo, e_denom)
 e_mp2 = numpy.einsum('iajb,iajb->', eri_mo, t2, optimize=True)
 lib.logger.info(mf,"!*** E(MP2): %12.8f" % e_mp2)
 lib.logger.info(mf,"!**** E(HF+MP2): %12.8f" % (e_mp2+ehf))
+
+pt = mp.MP2(mf)
+pt.frozen = ncore
+pt.kernel()
 
